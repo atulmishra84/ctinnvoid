@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
@@ -230,7 +230,7 @@ svg.ledge-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:
 .lleg-line{width:20px;height:2px;border-radius:1px}
 `;
 
-const API = "/api";
+const API = "http://localhost:3001/api";
 // Live data hooks — fetched from Entra ID via backend
 async function apiFetch(path) {
   const res = await fetch(API + path);
@@ -437,19 +437,50 @@ function RPABuilder(){
 }
 
 function RoleMining({liveData}){
-  const [sel,setSel]=useState(null);const totE=ROLES.reduce((s,r)=>s+r.ents,0);
+  const [sel,setSel]=useState(null);
   const IDENTITIES=liveData?.identities||[];
-  const totalIds=liveData?.summary?.total||IDENTITIES.length||251;
+  const totalIds=liveData?.summary?.total||251;
+
+  // Generate real roles from live identity data grouped by department
+  const liveRoles = useMemo(()=>{
+    if(!IDENTITIES.length) return ROLES;
+    const deptMap={};
+    IDENTITIES.forEach(id=>{
+      const dept=id.dept&&id.dept!=="—"?id.dept:"Other";
+      if(!deptMap[dept]) deptMap[dept]={members:[],roles:new Set()};
+      deptMap[dept].members.push(id);
+      if(id.role&&id.role!=="User") deptMap[dept].roles.add(id.role);
+    });
+    const icons={"Engineering":"⚙️","Finance":"💰","Sales":"📈","HR":"👥","IT":"🔧","IT Security":"🛡️","Accounting":"💰","Executive Management":"👑","Operations":"🏭","Marketing":"📣","Other":"👤"};
+    const colors=["#00D4B8","#7B6EF6","#FFB547","#38BDF8","#F062A4","#FF4668","#22D3A0"];
+    return Object.entries(deptMap)
+      .filter(([,v])=>v.members.length>0)
+      .sort((a,b)=>b[1].members.length-a[1].members.length)
+      .slice(0,8)
+      .map(([dept,v],i)=>({
+        id:i+1,
+        name:dept+" Team",
+        icon:icons[dept]||"👤",
+        color:colors[i%colors.length],
+        members:v.members.length,
+        ents:Math.max(v.roles.size,3),
+        sod:v.members.some(m=>m.risk==="critical")&&v.members.some(m=>m.risk==="low"),
+        conf:Math.min(99,85+Math.floor(v.members.length/3)),
+        apps:Array.from(v.roles).slice(0,3).map(r=>r.split(" ")[0])||["Entra ID"]
+      }));
+  },[IDENTITIES]);
+
+  const totE=liveRoles.reduce((s,r)=>s+r.ents,0);
   return(
     <div className="page">
       <div className="ph"><div className="phtop"><div><div className="ptitle">Role <span>Mining</span></div><div className="psub">AI-suggested roles from entitlement patterns across {IDENTITIES.length} identities</div></div><button className="btn btn-p">Publish All Roles</button></div></div>
       <div className="sgrid c3 gap">
-        <div className="sc"><div className="sc-glow" style={{background:"#7B6EF6"}}/><div className="slbl">Suggested Roles</div><div className="sval" style={{color:"#7B6EF6"}}>{ROLES.length}</div><div className="ssub">From {totE} entitlements</div></div>
-        <div className="sc"><div className="sc-glow" style={{background:"#FF4668"}}/><div className="slbl">SoD Conflicts</div><div className="sval" style={{color:"#FF4668"}}>{ROLES.filter(r=>r.sod).length}</div><div className="ssub">Review before publishing</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#7B6EF6"}}/><div className="slbl">Suggested Roles</div><div className="sval" style={{color:"#7B6EF6"}}>{liveRoles.length}</div><div className="ssub">From {totE} entitlements</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#FF4668"}}/><div className="slbl">SoD Conflicts</div><div className="sval" style={{color:"#FF4668"}}>{liveRoles.filter(r=>r.sod).length}</div><div className="ssub">Review before publishing</div></div>
         <div className="sc"><div className="sc-glow" style={{background:"#00F5D4"}}/><div className="slbl">Identities Analysed</div><div className="sval" style={{color:"#00F5D4"}}>{totalIds}</div><div className="ssub">From IdenAccess tenant</div></div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:sel?"1fr 360px":"1fr",gap:16,alignItems:"start"}}>
-        <div>{ROLES.map(r=>(<div key={r.id} className={`rcard ${sel?.id===r.id?"sel":""}`} onClick={()=>setSel(sel?.id===r.id?null:r)}><div className="ricon" style={{background:`${r.color}18`}}>{r.icon}</div><div className="rinfo"><div className="rname">{r.name}</div><div className="rapps">{r.apps.join(" · ")}</div><div style={{marginTop:6,display:"flex",gap:6}}>{r.sod&&<span className="chip ct-r" style={{fontSize:10}}>⚠ SoD</span>}<span className="chip ct-gh" style={{fontSize:10}}>{r.conf}% conf.</span></div></div><div className="rstats"><div className="rstat"><strong style={{color:r.color}}>{r.members}</strong>members</div><div className="rstat"><strong>{r.ents}</strong>entitlements</div></div></div>))}</div>
+        <div>{liveRoles.map(r=>(<div key={r.id} className={`rcard ${sel?.id===r.id?"sel":""}`} onClick={()=>setSel(sel?.id===r.id?null:r)}><div className="ricon" style={{background:`${r.color}18`}}>{r.icon}</div><div className="rinfo"><div className="rname">{r.name}</div><div className="rapps">{r.apps.join(" · ")}</div><div style={{marginTop:6,display:"flex",gap:6}}>{r.sod&&<span className="chip ct-r" style={{fontSize:10}}>⚠ SoD</span>}<span className="chip ct-gh" style={{fontSize:10}}>{r.conf}% conf.</span></div></div><div className="rstats"><div className="rstat"><strong style={{color:r.color}}>{r.members}</strong>members</div><div className="rstat"><strong>{r.ents}</strong>entitlements</div></div></div>))}</div>
         {sel&&(<div className="dp"><div className="fb" style={{marginBottom:18}}><div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:600}}>{sel.icon} {sel.name}</div><button className="btn btn-g btn-xs" onClick={()=>setSel(null)}>✕</button></div><div className="sgrid" style={{gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}><div className="sc" style={{padding:"14px 16px"}}><div className="slbl">Members</div><div className="sval" style={{fontSize:24,color:sel.color}}>{sel.members}</div></div><div className="sc" style={{padding:"14px 16px"}}><div className="slbl">Confidence</div><div className="sval" style={{fontSize:24,color:"var(--green)"}}>{sel.conf}%</div></div></div><div style={{marginBottom:16}}><div className="flbl" style={{marginBottom:8}}>Applications</div><div className="tag-row">{sel.apps.map(a=><span key={a} className="chip ct-b">{a}</span>)}</div></div><div style={{marginBottom:16}}><div className="flbl" style={{marginBottom:8}}>Entitlements ({sel.ents})</div><div className="tag-row">{Array.from({length:sel.ents},(_,i)=><span key={i} className="chip ct-gh" style={{fontSize:10}}>ENT-{String(i+1).padStart(3,"0")}</span>)}</div></div>{sel.sod&&<div style={{background:"rgba(255,70,104,.08)",border:"1px solid rgba(255,70,104,.2)",borderRadius:"var(--r)",padding:"12px 14px",marginBottom:16}}><div style={{color:"var(--red)",fontWeight:600,marginBottom:4}}>⚠ SoD Conflict</div><div style={{fontSize:12,color:"var(--text2)"}}>This role violates segregation of duties. Review before publishing.</div></div>}<div className="fc2"><button className="btn btn-p btn-sm" style={{flex:1}}>Publish Role</button><button className="btn btn-g btn-sm">Edit</button></div></div>)}
       </div>
     </div>
@@ -552,13 +583,13 @@ const ACCESS_PATHS=[
 ];
 
 /* ── GRAPH VIEW ─────────────────────────────────────────────────────────── */
-function GraphView(){
+function GraphView({nodes}){  const LIN_NODES_USE=nodes||LIN_NODES;
   const [sel,setSel]=useState(null);
   const [offset,setOffset]=useState({x:0,y:0});
   const [drag,setDrag]=useState(null);
   const canvasRef=useRef(null);
 
-  const getPos=id=>{const n=LIN_NODES.find(x=>x.id===id);return n?{x:n.x+offset.x,y:n.y+offset.y}:null;};
+  const getPos=id=>{const n=(nodes||LIN_NODES).find(x=>x.id===id);return n?{x:n.x+offset.x,y:n.y+offset.y}:null;};
 
   const onMouseDown=e=>{if(e.target===canvasRef.current)setDrag({sx:e.clientX-offset.x,sy:e.clientY-offset.y});};
   const onMouseMove=e=>{if(drag)setOffset({x:e.clientX-drag.sx,y:e.clientY-drag.sy});};
@@ -588,6 +619,7 @@ function GraphView(){
               <marker id="arr-r" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="var(--red)" opacity=".7"/></marker>
             </defs>
             {LIN_EDGES.map((e,i)=>{
+              const LIN_NODES=LIN_NODES_USE;
               const s=getPos(e.s),t=getPos(e.t);if(!s||!t)return null;
               const mx=(s.x+t.x)/2,my=(s.y+t.y)/2;
               const faded=sel&&!connected.has(e.s)&&!connected.has(e.t);
@@ -597,7 +629,7 @@ function GraphView(){
               return <path key={i} d={mid} className={`ledge ${e.k}`} stroke={col} markerEnd={arr} opacity={faded?.15:.5} style={{transition:"opacity .2s"}}/>;
             })}
           </svg>
-          {LIN_NODES.map(n=>{
+          {LIN_NODES_USE.map(n=>{
             const faded=sel&&!connected.has(n.id)&&n.id!==sel;
             const typeColors={iam:"rgba(123,110,246,.12)",human:"rgba(56,189,248,.1)",service:"rgba(123,110,246,.1)",machine:"rgba(0,212,184,.1)",vendor:"rgba(255,181,71,.1)",group:"rgba(255,255,255,.06)",app:"rgba(0,212,184,.1)",ent:"rgba(255,255,255,.06)"};
             return(
@@ -739,7 +771,7 @@ function Lineage({liveData}){
         <div className="phtop">
           <div>
             <div className="ptitle">Identity & Data <span>Lineage</span></div>
-            <div className="psub">Tracing {totalIdentities} identities · IdenAccess.onmicrosoft.com <span style={{color:"var(--teal)",fontSize:11,fontFamily:"var(--font-m)",marginLeft:8}}>● Live</span></div>
+            <div className="psub">Tracing {totalIdentities} identities across groups, apps & entitlements · <span style={{color:"var(--teal)"}}>IdenAccess.onmicrosoft.com</span> <span style={{color:"var(--teal)",fontSize:11,fontFamily:"var(--font-m)",marginLeft:8}}>● Live</span></div>
           </div>
           <div className="pact">
             <div className="sgrid" style={{gridTemplateColumns:"repeat(3,1fr)",gap:10,margin:0}}>
@@ -753,7 +785,7 @@ function Lineage({liveData}){
       <div className="ltabs">
         {tabs.map(t=><button key={t.id} className={`ltab ${tab===t.id?"on":""}`} onClick={()=>setTab(t.id)}>{t.label}</button>)}
       </div>
-      {tab==="graph"&&<GraphView/>}
+      {tab==="graph"&&<GraphView nodes={liveNodes}/>}
       {tab==="tree"&&<TreeView/>}
       {tab==="flow"&&<FlowView/>}
     </div>
