@@ -1,6 +1,5 @@
 {
   "name": "ctinnvoid-api",
   "version": "1.0.0",
-  "description": "CTInnvoID Azure Functions API",
-  "main": "index.js"
+  "type": "module"
 }
