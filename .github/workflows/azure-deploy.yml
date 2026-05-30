@@ -14,9 +14,9 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '20.19.0'
 
-      - name: Install & Build frontend
+      - name: Build frontend
         run: |
           cd ctinnvoid-frontend
           npm install
@@ -31,3 +31,4 @@ jobs:
           app_location: ctinnvoid-frontend
           api_location: api
           output_location: dist
+          skip_app_build: true
