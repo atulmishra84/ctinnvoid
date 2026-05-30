@@ -230,7 +230,7 @@ svg.ledge-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:
 .lleg-line{width:20px;height:2px;border-radius:1px}
 `;
 
-const API = "http://localhost:3001/api";
+const API = "/api";
 // Live data hooks — fetched from Entra ID via backend
 async function apiFetch(path) {
   const res = await fetch(API + path);
