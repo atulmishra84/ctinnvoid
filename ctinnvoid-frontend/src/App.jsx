@@ -1985,14 +1985,14 @@ function Chatbot({liveData}){
   const currentTopic=CHAT_TOPICS.find(t=>t.id===topic)||CHAT_TOPICS[0];
 
   return(
-    <div className="chat-wrap">
+    <div className="cw">
       {/* Top bar */}
-      <div className="chat-topbar">
-        <div className="chat-topbar-left">
-          <div className="chat-ai-avatar">🤖</div>
+      <div className="cw-header">
+        <div className="cw-header-l">
+          <div className="cw-logo">🤖</div>
           <div>
-            <div className="chat-topbar-title">CTInnvoID AI Assistant</div>
-            <div className="chat-topbar-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · IdenAccess.onmicrosoft.com</div>
+            <div className="cw-title">CTInnvoID AI Assistant</div>
+            <div className="cw-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · IdenAccess.onmicrosoft.com</div>
           </div>
         </div>
         <div className="fc2">
@@ -2001,17 +2001,17 @@ function Chatbot({liveData}){
         </div>
       </div>
 
-      <div className="chat-body">
+      <div className="cw-body">
         {/* Sidebar */}
-        <div className="chat-sidebar">
-          <div className="chat-sidebar-hd">Capabilities</div>
+        <div className="cw-nav">
+          <div className="cw-nav-section">Capabilities</div>
           <div style={{flex:1,overflowY:"auto"}}>
             {CHAT_TOPICS.map(t=>(
               <div key={t.id} className={`chat-topic ${topic===t.id?"active":""}`} onClick={()=>setTopic(t.id)}>
-                <span className="chat-topic-icon">{t.icon}</span>
-                <div className="chat-topic-info">
-                  <span className="chat-topic-label">{t.label}</span>
-                  <span className="chat-topic-sub">{t.sub}</span>
+                <span className="cw-nav-icon">{t.icon}</span>
+                <div className="cw-nav-info">
+                  <span className="cw-nav-label">{t.label}</span>
+                  <span className="cw-nav-sub">{t.sub}</span>
                 </div>
               </div>
             ))}
@@ -2020,13 +2020,13 @@ function Chatbot({liveData}){
         </div>
 
         {/* Main */}
-        <div className="chat-main">
-          <div className="chat-messages">
+        <div className="cw-main">
+          <div className="cw-msgs">
             {messages.map(m=><ChatMessage key={m.id} msg={m} onAction={send}/>)}
             {loading&&(
-              <div className="chat-msg">
+              <div className="cm">
                 <div className="chat-avatar ai">🤖</div>
-                <div className="chat-typing">
+                <div className="cm-typing">
                   <span/><span/><span/>
                   <span style={{fontSize:11,color:"var(--text3)",marginLeft:4,fontFamily:"var(--font-m)"}}>Thinking…</span>
                 </div>
@@ -2035,32 +2035,32 @@ function Chatbot({liveData}){
             <div ref={msgEndRef}/>
           </div>
 
-          <div className="chat-input-area">
-            <div className="chat-suggestions">
+          <div className="cw-footer">
+            <div className="cw-suggestions">
               {currentTopic.prompts.slice(0,5).map((p,i)=>(
-                <button key={i} className="chat-suggestion" onClick={()=>send(p)}>{p}</button>
+                <button key={i} className="cw-sug" onClick={()=>send(p)}>{p}</button>
               ))}
             </div>
-            <div className="chat-quick-row">
+            <div className="cw-quick-row">
               {QUICK_ACTIONS.map((a,i)=>(
-                <button key={i} className="chat-quick" onClick={()=>send(a.label)}>
+                <button key={i} className="cw-quick" onClick={()=>send(a.label)}>
                   {a.icon} {a.label}
                 </button>
               ))}
             </div>
-            <div className="chat-input-row">
+            <div className="cw-input-row">
               <textarea
                 ref={inputRef}
-                className="chat-input"
+                className="cw-input"
                 placeholder={`Ask about identities, configure ${siemSystem}, manage access, integrate apps…`}
                 value={input}
                 onChange={e=>setInput(e.target.value)}
                 onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
                 rows={1}
               />
-              <button className="chat-send" onClick={()=>send()} disabled={loading||!input.trim()}>↑</button>
+              <button className="cw-send" onClick={()=>send()} disabled={loading||!input.trim()}>↑</button>
             </div>
-            <div className="chat-hint">Enter to send · Shift+Enter for new line · Actions require admin confirmation</div>
+            <div className="cw-hint">Enter to send · Shift+Enter for new line · Actions require admin confirmation</div>
           </div>
         </div>
       </div>
