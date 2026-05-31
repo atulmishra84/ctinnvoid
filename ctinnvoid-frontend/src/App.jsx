@@ -329,7 +329,7 @@ function Dashboard({setPage,scanning,setScanning,liveData,reloadData}){
         <div className="sc" style={{cursor:"pointer"}} onClick={()=>setPage("identities")}><div className="sc-glow" style={{background:"#38BDF8"}}/><div className="slbl">Total Identities</div><div className="sval" style={{color:"#38BDF8"}}>{tot}</div><div className="ssub">All types · Entra ID</div></div>
         <div className="sc" style={{cursor:"pointer"}} onClick={()=>setPage("identities")}><div className="sc-glow" style={{background:"#FF4668"}}/><div className="slbl">Critical Risk</div><div className="sval" style={{color:"#FF4668"}}>{crit}</div><div className="ssub">Immediate action</div></div>
         <div className="sc" style={{cursor:"pointer"}} onClick={()=>setPage("identities")}><div className="sc-glow" style={{background:"#FFB547"}}/><div className="slbl">Dormant Accounts</div><div className="sval" style={{color:"#FFB547"}}>{dorm}</div><div className="ssub">90+ days inactive</div></div>
-        <div className="sc" style={{cursor:"pointer"}} onClick={()=>setPage("apps")}><div className="sc-glow" style={{background:"#00F5D4"}}/><div className="slbl">App Coverage</div><div className="sval" style={{color:"#00F5D4"}}>{intg}<span style={{fontSize:20,color:"var(--text3)"}}>/{APPS.length}</span></div><div className="ssub">{APPS.length-intg} gaps remaining</div></div>
+        <div className="sc" style={{cursor:"pointer"}} onClick={()=>setPage("apps")}><div className="sc-glow" style={{background:"#00F5D4"}}/><div className="slbl">App Coverage</div><div className="sval" style={{color:"#00F5D4"}}>{intg}<span style={{fontSize:20,color:"var(--text3)"}}>/{APPS.length}</span></div><div className="ssub">{APPS.filter(x=>!x.ok).length} gaps remaining</div></div>
       </div>
       <div className="dbar gap">
         <div className="dbar-lbl">Identity distribution</div>
@@ -369,15 +369,41 @@ function Identities({liveData}){
 
 function AppCoverage({setPage,setSelApp}){
   const [filter,setFilter]=useState("all");
-  const intg=APPS.filter(x=>x.ok).length;
-  const rows=APPS.filter(a=>filter==="all"||(filter==="ok"&&a.ok)||(filter==="gap"&&!a.ok));
+  const [liveApps,setLiveApps]=useState(null);
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    apiFetch("/apps")
+      .then(data=>{setLiveApps(data);setLoading(false);})
+      .catch(()=>setLoading(false));
+  },[]);
+
+  // Merge live Entra apps (integrated) with known gap apps
+  const KNOWN_GAPS=[
+    {id:"g1",name:"SAP S/4HANA",cat:"ERP",ok:false,method:"—",risk:"critical",owner:"Finance"},
+    {id:"g2",name:"Oracle HCM",cat:"HRMS",ok:false,method:"—",risk:"critical",owner:"HR"},
+    {id:"g3",name:"Workday",cat:"HR/FIN",ok:false,method:"—",risk:"high",owner:"HR"},
+    {id:"g4",name:"Legacy ERP (BAAN)",cat:"ERP",ok:false,method:"RPA needed",risk:"critical",owner:"Operations"},
+    {id:"g5",name:"Oracle DB Console",cat:"Database",ok:false,method:"—",risk:"high",owner:"DBA Team"},
+    {id:"g6",name:"NetSuite",cat:"Finance",ok:false,method:"—",risk:"high",owner:"Finance"},
+    {id:"g7",name:"Legacy Payroll App",cat:"Finance",ok:false,method:"RPA needed",risk:"critical",owner:"Payroll"},
+  ];
+
+  const entraApps=(liveApps?.apps||[])
+    .filter(a=>a.name&&!["Microsoft Graph","Office 365","Azure AD"].includes(a.name))
+    .slice(0,20)
+    .map(a=>({...a,ok:true,method:"Entra SSO",risk:"low"}));
+
+  const allApps=loading?APPS:[...entraApps,...KNOWN_GAPS];
+  const intg=allApps.filter(x=>x.ok).length;
+  const rows=allApps.filter(a=>filter==="all"||(filter==="ok"&&a.ok)||(filter==="gap"&&!a.ok));
   return(
     <div className="page">
-      <div className="ph"><div className="ptitle">App <span>Coverage</span></div><div className="psub">{intg} of {APPS.length} applications integrated with Entra ID</div></div>
+      <div className="ph"><div className="ptitle">App <span>Coverage</span></div><div className="psub">{loading?"Scanning…":`${intg} of ${allApps.length} applications integrated`} · IdenAccess.onmicrosoft.com <span style={{color:"var(--teal)",fontSize:11,fontFamily:"var(--font-m)",marginLeft:8}}>{!loading&&"● Live"}</span></div></div>
       <div className="sgrid c3 gap">
-        <div className="sc"><div className="sc-glow" style={{background:"#00F5D4"}}/><div className="slbl">Integrated</div><div className="sval" style={{color:"#00F5D4"}}>{intg}</div><div className="ssub">SSO + provisioning active</div></div>
-        <div className="sc"><div className="sc-glow" style={{background:"#FF4668"}}/><div className="slbl">Not Integrated</div><div className="sval" style={{color:"#FF4668"}}>{APPS.length-intg}</div><div className="ssub">Manual access risk</div></div>
-        <div className="sc"><div className="sc-glow" style={{background:"#7B6EF6"}}/><div className="slbl">Coverage Score</div><div className="sval" style={{color:"#7B6EF6"}}>{Math.round(intg/APPS.length*100)}%</div><div className="ssub">Target: 100%</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#00F5D4"}}/><div className="slbl">Integrated</div><div className="sval" style={{color:"#00F5D4"}}>{loading?"…":intg}</div><div className="ssub">Live from Entra ID</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#FF4668"}}/><div className="slbl">Not Integrated</div><div className="sval" style={{color:"#FF4668"}}>{loading?"…":allApps.length-intg}</div><div className="ssub">Manual access risk</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#7B6EF6"}}/><div className="slbl">Coverage Score</div><div className="sval" style={{color:"#7B6EF6"}}>{loading?"…":Math.round(intg/Math.max(allApps.length,1)*100)+"%"}</div><div className="ssub">Target: 100%</div></div>
       </div>
       <div className="fbar">{[["all","All"],["ok","Integrated"],["gap","Gaps Only"]].map(([v,l])=>(<button key={v} className={`fc ${filter===v?"on":""}`} onClick={()=>setFilter(v)}>{l}</button>))}</div>
       <div className="gcard">
@@ -583,13 +609,14 @@ const ACCESS_PATHS=[
 ];
 
 /* ── GRAPH VIEW ─────────────────────────────────────────────────────────── */
-function GraphView({nodes}){  const LIN_NODES_USE=nodes||LIN_NODES;
+function GraphView({nodes}){
+  const LIN_NODES_USE=nodes&&nodes.length?nodes:LIN_NODES;
   const [sel,setSel]=useState(null);
   const [offset,setOffset]=useState({x:0,y:0});
   const [drag,setDrag]=useState(null);
   const canvasRef=useRef(null);
 
-  const getPos=id=>{const n=(nodes||LIN_NODES).find(x=>x.id===id);return n?{x:n.x+offset.x,y:n.y+offset.y}:null;};
+  const getPos=id=>{const n=LIN_NODES_USE.find(x=>x.id===id);return n?{x:n.x+offset.x,y:n.y+offset.y}:null;};
 
   const onMouseDown=e=>{if(e.target===canvasRef.current)setDrag({sx:e.clientX-offset.x,sy:e.clientY-offset.y});};
   const onMouseMove=e=>{if(drag)setOffset({x:e.clientX-drag.sx,y:e.clientY-drag.sy});};
@@ -619,7 +646,6 @@ function GraphView({nodes}){  const LIN_NODES_USE=nodes||LIN_NODES;
               <marker id="arr-r" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="var(--red)" opacity=".7"/></marker>
             </defs>
             {LIN_EDGES.map((e,i)=>{
-              const LIN_NODES=LIN_NODES_USE;
               const s=getPos(e.s),t=getPos(e.t);if(!s||!t)return null;
               const mx=(s.x+t.x)/2,my=(s.y+t.y)/2;
               const faded=sel&&!connected.has(e.s)&&!connected.has(e.t);
