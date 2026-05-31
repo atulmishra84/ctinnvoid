@@ -276,7 +276,7 @@ const riskChip=r=>{
 const stChip=s=>s==="dormant"?<span className="chip ct-a">Dormant</span>:<span className="chip ct-t">Active</span>;
 const tyChip=t=>{const m=TM[t]||TM.human;return <span className="chip" style={{background:`${m.color}14`,color:m.color,border:`1px solid ${m.color}28`}}>{m.label}</span>;};
 
-const NAV=[{id:"dashboard",icon:"◈",label:"Overview",badge:null},{id:"identities",icon:"◉",label:"Identity Map",badge:null},{id:"apps",icon:"⬡",label:"App Coverage",badge:"7 gaps"},{id:"connector",icon:"⟳",label:"Connector Studio",badge:null},{id:"rpa",icon:"⬟",label:"RPA Builder",badge:null},{id:"roles",icon:"◆",label:"Role Mining",badge:null},{id:"lineage",icon:"⟡",label:"Lineage",badge:null},{id:"discovery",icon:"◎",label:"Discovery",badge:null},{id:"integrations",icon:"⬢",label:"Integration Hub",badge:"New"}];
+const NAV=[{id:"dashboard",icon:"◈",label:"Overview",badge:null},{id:"identities",icon:"◉",label:"Identity Map",badge:null},{id:"apps",icon:"⬡",label:"App Coverage",badge:"7 gaps"},{id:"connector",icon:"⟳",label:"Connector Studio",badge:null},{id:"rpa",icon:"⬟",label:"RPA Builder",badge:null},{id:"roles",icon:"◆",label:"Role Mining",badge:null},{id:"lineage",icon:"⟡",label:"Lineage",badge:null},{id:"discovery",icon:"◎",label:"Discovery",badge:null},{id:"integrations",icon:"⬢",label:"Integration Hub",badge:null},{id:"chatbot",icon:"◌",label:"AI Assistant",badge:"Beta"}];
 
 function Sidebar({page,setPage,dark,setDark,live,loading}){
   return(
@@ -419,7 +419,7 @@ function ConnectorStudio({selApp,setSelApp}){
   const [name,setName]=useState(selApp?.name||"");const [type,setType]=useState(selApp?.cat||"ERP");const [auth,setAuth]=useState("OAuth2");const [desc,setDesc]=useState(selApp?`${selApp.name} — ${selApp.cat}. Owner: ${selApp.owner}. Risk: ${selApp.risk}.`:"");const [out,setOut]=useState("");const [busy,setBusy]=useState(false);const ref=useRef(null);
   useEffect(()=>{if(selApp){setName(selApp.name);setType(selApp.cat);setDesc(`${selApp.name} — ${selApp.cat}. Owner: ${selApp.owner}. Risk: ${selApp.risk}.`);}},[selApp]);
   useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[out]);
-  const gen=async()=>{if(!name)return;setBusy(true);setOut("");const prompt=`You are an IAM integration architect. Generate a complete Microsoft Entra ID SCIM/OAuth2 connector configuration for:\n\nApplication: ${name}\nType: ${type}\nAuth: ${auth}\nContext: ${desc}\n\nProduce detailed production-ready JSON with:\n1. Connector metadata & versioning\n2. OAuth2/SCIM auth config (endpoints, scopes, token handling)\n3. SCIM 2.0 provisioning schema with attribute mappings\n4. Lifecycle handlers (provision/deprovision/update/suspend)\n5. Entitlement sync config\n6. Health check & retry policy\n7. Audit log config\n\nFormat as clean JSON with // comments.`;try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,stream:true,messages:[{role:"user",content:prompt}]})});const reader=r.body.getReader();const dec=new TextDecoder();while(true){const{done,value}=await reader.read();if(done)break;for(const line of dec.decode(value).split("\\n")){if(line.startsWith("data:")){try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setOut(p=>p+d.delta.text);}catch{}}}}}catch(e){setOut("// Error: "+e.message);}setBusy(false);};
+  const gen=async()=>{if(!name)return;setBusy(true);setOut("");const prompt=`You are an IAM integration architect. Generate a complete Microsoft Entra ID SCIM/OAuth2 connector configuration for:\n\nApplication: ${name}\nType: ${type}\nAuth: ${auth}\nContext: ${desc}\n\nProduce detailed production-ready JSON with:\n1. Connector metadata & versioning\n2. OAuth2/SCIM auth config (endpoints, scopes, token handling)\n3. SCIM 2.0 provisioning schema with attribute mappings\n4. Lifecycle handlers (provision/deprovision/update/suspend)\n5. Entitlement sync config\n6. Health check & retry policy\n7. Audit log config\n\nFormat as clean JSON with // comments.`;try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,stream:true,messages:[{role:"user",content:prompt}]})});const reader=r.body.getReader();const dec=new TextDecoder();while(true){const{done,value}=await reader.read();if(done)break;for(const line of dec.decode(value).split("\n")){if(line.startsWith("data:")){try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setOut(p=>p+d.delta.text);}catch{}}}}}catch(e){setOut("// Error: "+e.message);}setBusy(false);};
   const dl=()=>{const b=new Blob([out],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=`${name.replace(/\s+/g,"-").toLowerCase()}-connector.json`;a.click();};
   return(
     <div className="page">
@@ -449,7 +449,7 @@ function RPABuilder(){
   const [step,setStep]=useState(1);const [app,setApp]=useState("");const [platform,setPlatform]=useState("UiPath");const [uiDesc,setUiDesc]=useState("");const [script,setScript]=useState("");const [busy,setBusy]=useState(false);const ref=useRef(null);
   useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[script]);
   const legacyApps=APPS.filter(a=>a.method==="RPA needed"||!a.ok).map(a=>a.name);
-  const genBot=async()=>{setBusy(true);setScript("");setStep(3);const prompt=`You are an RPA architect specialising in IAM automation. Generate a complete, production-ready ${platform} automation script for:\n\nApplication: ${app}\nUI: ${uiDesc||"Standard web login with username/password and role dropdown"}\n\nInclude:\n1. Bot metadata & config\n2. Login automation sequence\n3. User provisioning workflow (create, assign role, notify)\n4. Deprovisioning workflow (disable, remove roles, audit log)\n5. Error handling & retry logic\n6. Audit logging & notifications\n\nBe detailed and production-realistic.`;try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,stream:true,messages:[{role:"user",content:prompt}]})});const reader=r.body.getReader();const dec=new TextDecoder();while(true){const{done,value}=await reader.read();if(done)break;for(const line of dec.decode(value).split("\\n")){if(line.startsWith("data:")){try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setScript(p=>p+d.delta.text);}catch{}}}}}catch(e){setScript("# Error: "+e.message);}setBusy(false);};
+  const genBot=async()=>{setBusy(true);setScript("");setStep(3);const prompt=`You are an RPA architect specialising in IAM automation. Generate a complete, production-ready ${platform} automation script for:\n\nApplication: ${app}\nUI: ${uiDesc||"Standard web login with username/password and role dropdown"}\n\nInclude:\n1. Bot metadata & config\n2. Login automation sequence\n3. User provisioning workflow (create, assign role, notify)\n4. Deprovisioning workflow (disable, remove roles, audit log)\n5. Error handling & retry logic\n6. Audit logging & notifications\n\nBe detailed and production-realistic.`;try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,stream:true,messages:[{role:"user",content:prompt}]})});const reader=r.body.getReader();const dec=new TextDecoder();while(true){const{done,value}=await reader.read();if(done)break;for(const line of dec.decode(value).split("\n")){if(line.startsWith("data:")){try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setScript(p=>p+d.delta.text);}catch{}}}}}catch(e){setScript("# Error: "+e.message);}setBusy(false);};
   const dl=()=>{const b=new Blob([script],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=`${app.replace(/\s+/g,"-").toLowerCase()}-bot.txt`;a.click();};
   return(
     <div className="page">
@@ -1454,6 +1454,290 @@ Format as clean JSON with // comments. Make it production-realistic.`;
 }
 
 
+/* ── AI ASSISTANT CHATBOT ───────────────────────────────────────────────── */
+const CHAT_TOPICS=[
+  {id:"identity",icon:"👤",label:"Identity Management",sub:"Create, update, disable accounts",prompts:["Create a new user account","Disable a dormant account","Reset user permissions","List all privileged accounts","Show me all vendor accounts"]},
+  {id:"access",icon:"🔐",label:"Access & Entitlements",sub:"Manage roles and access rights",prompts:["Who has access to SAP?","Show me all Global Admins","Review access for Finance team","Find over-privileged accounts","Check SoD conflicts"]},
+  {id:"iam-config",icon:"🏛️",label:"IAM Configuration",sub:"Configure IAM systems",prompts:["How do I connect Okta to CTInnvoID?","Configure SailPoint IIQ connector","Set up CyberArk PAM integration","Show Entra ID configuration","Test my IAM connection"]},
+  {id:"app-config",icon:"⬡",label:"App Integration",sub:"Connect downstream applications",prompts:["Generate a ServiceNow SCIM connector","How do I integrate SAP with Entra?","Configure Workday provisioning","Set up Salesforce SSO","Build RPA bot for legacy app"]},
+  {id:"siem",icon:"🛡️",label:"SIEM & Security",sub:"Security alerts and threat intel",prompts:["Show recent security alerts","Any suspicious login attempts?","Check for privileged access abuse","SIEM summary for today","Identify high-risk activities"]},
+  {id:"reports",icon:"📊",label:"Reports & Audit",sub:"Compliance and audit reports",prompts:["Generate access review report","Show dormant accounts report","Compliance status summary","Export identity inventory","Certification campaign status"]},
+];
+
+const SIEM_SYSTEMS=["Splunk","Microsoft Sentinel","IBM QRadar","Elastic SIEM","Palo Alto Cortex","CrowdStrike","Sumo Logic"];
+
+const QUICK_ACTIONS=[
+  {icon:"👤",label:"Create User"},
+  {icon:"🚫",label:"Disable Account"},
+  {icon:"🔑",label:"Reset Access"},
+  {icon:"📋",label:"Access Review"},
+  {icon:"🛡️",label:"SIEM Alerts"},
+  {icon:"⟳",label:"Sync Identities"},
+];
+
+function buildSystemPrompt(liveData){
+  const sum=liveData?.summary||{};
+  return `You are the CTInnvoID AI Assistant — an intelligent IAM security platform assistant. You help security administrators manage identities, configure integrations, and respond to security events.
+
+CURRENT ENVIRONMENT (IdenAccess.onmicrosoft.com):
+- Total identities: ${sum.total||251}
+- Human users: ${sum.human||0}
+- Service accounts: ${sum.service||0} 
+- Critical risk identities: ${sum.critical||0}
+- Disabled accounts: ${sum.disabled||0}
+
+PLATFORM CAPABILITIES:
+1. Identity CRUD — create, read, update, disable/enable user accounts
+2. Access management — assign/revoke roles, entitlements, group memberships
+3. IAM configuration — connect Okta, SailPoint IIQ, CyberArk, Ping, ForgeRock, Active Directory
+4. App integration — configure SCIM/SAML/OAuth2 connectors for downstream apps
+5. RPA bots — generate automation bots for legacy apps with no API
+6. SIEM integration — connect Splunk, Microsoft Sentinel, QRadar, Elastic SIEM
+7. Role mining — suggest roles from entitlement patterns
+8. Compliance reports — access reviews, certifications, audit logs
+
+RESPONSE STYLE:
+- Be concise and action-oriented
+- For CRUD operations: confirm what you will do, show the operation result as a structured card
+- For configuration: provide step-by-step guidance with real config snippets
+- For SIEM: show alert summaries with severity, affected users, recommended actions
+- For reports: show summary stats with key findings
+- Use emojis sparingly for clarity
+- If asked to perform an action (create user, disable account etc.), simulate the operation and show a realistic result card
+- Always mention if an action requires admin approval or has security implications
+
+You have read access to the identity data above. For write operations, confirm the action and show what would happen.`;
+}
+
+function ChatMessage({msg,onAction}){
+  const isUser=msg.role==="user";
+  const time=new Date(msg.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  return(
+    <div className={`chat-msg ${isUser?"user":""}`}>
+      <div className={`chat-avatar ${isUser?"user":"ai"}`}>{isUser?"👤":"🤖"}</div>
+      <div>
+        <div className={`chat-bubble ${isUser?"user":"ai"}`}>
+          <div style={{whiteSpace:"pre-wrap"}}>{msg.content}</div>
+          {msg.card&&(
+            <div className="chat-result-card">
+              <div className="chat-result-title">{msg.card.title}</div>
+              {msg.card.rows?.map((r,i)=>(
+                <div key={i} className="chat-result-row">
+                  <span style={{color:"var(--text3)"}}>{r.k}</span>
+                  <span style={{color:r.color||"var(--text)",fontFamily:"var(--font-m)",fontSize:11}}>{r.v}</span>
+                </div>
+              ))}
+              {msg.card.status&&(
+                <div style={{marginTop:8,display:"flex",alignItems:"center",gap:6,fontSize:12}}>
+                  <span style={{color:msg.card.status==="success"?"var(--green)":msg.card.status==="warning"?"var(--amber)":"var(--red)",fontWeight:600}}>
+                    {msg.card.status==="success"?"✓ Success":msg.card.status==="warning"?"⚠ Warning":"✗ Failed"}
+                  </span>
+                  {msg.card.statusMsg&&<span style={{color:"var(--text2)"}}>{msg.card.statusMsg}</span>}
+                </div>
+              )}
+            </div>
+          )}
+          {msg.siem&&(
+            <div className={msg.siem.severity==="high"||msg.siem.severity==="critical"?"siem-alert":"siem-ok"}>
+              <div className={msg.siem.severity==="high"||msg.siem.severity==="critical"?"siem-alert-title":"siem-ok-title"}>
+                {msg.siem.severity==="high"||msg.siem.severity==="critical"?"🚨":"✓"} {msg.siem.title}
+              </div>
+              <div className="siem-alert-body">{msg.siem.body}</div>
+              {msg.siem.actions&&(
+                <div className="chat-action-cards" style={{marginTop:8}}>
+                  {msg.siem.actions.map((a,i)=><div key={i} className="chat-action-card" onClick={()=>onAction&&onAction(a)}>{a}</div>)}
+                </div>
+              )}
+            </div>
+          )}
+          {msg.actions&&(
+            <div className="chat-action-cards">
+              {msg.actions.map((a,i)=><div key={i} className="chat-action-card" onClick={()=>onAction&&onAction(a)}>{a}</div>)}
+            </div>
+          )}
+        </div>
+        <div className="chat-bubble-time">{time}</div>
+      </div>
+    </div>
+  );
+}
+
+function Chatbot({liveData}){
+  const [topic,setTopic]=useState("identity");
+  const [messages,setMessages]=useState([{
+    id:1,role:"assistant",ts:Date.now(),
+    content:`Hello! I'm the CTInnvoID AI Assistant. I can help you manage identities, configure IAM systems, integrate applications, and monitor security alerts across your IdenAccess.onmicrosoft.com tenant.\n\nI currently see ${liveData?.summary?.total||251} identities, ${liveData?.summary?.critical||0} critical risks, and can access your connected systems. What would you like to do?`,
+    actions:["Show critical identities","Configure a new IAM system","Generate SIEM report","Create a user account"]
+  }]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [siemSystem,setSiemSystem]=useState("Microsoft Sentinel");
+  const msgEndRef=useRef(null);
+  const inputRef=useRef(null);
+
+  useEffect(()=>{msgEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
+
+  const send=async(text)=>{
+    const userMsg=text||input.trim();
+    if(!userMsg||loading)return;
+    setInput("");
+    const userM={id:Date.now(),role:"user",ts:Date.now(),content:userMsg};
+    setMessages(p=>[...p,userM]);
+    setLoading(true);
+
+    try{
+      const history=messages.slice(-8).map(m=>({role:m.role==="assistant"?"assistant":"user",content:m.content}));
+      const sysPrompt=buildSystemPrompt(liveData);
+
+      // Detect intent for special handling
+      const lower=userMsg.toLowerCase();
+      const isCrud=/create|add|new user|disable|enable|delete|remove|reset|update|modify|change/.test(lower);
+      const isSiem=/siem|alert|threat|suspicious|attack|anomaly|incident|splunk|sentinel|qradar|security event/.test(lower);
+      const isConfig=/connect|configure|setup|integrate|connector|okta|sailpoint|cyberark|ping|forgerock/.test(lower);
+
+      let extraInstruction="";
+      if(isCrud) extraInstruction=`\n\nThis is an identity CRUD request. Simulate the operation and show a RESULT_CARD block.`;
+      if(isSiem) extraInstruction=`
+
+This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT block with title, severity (high/medium/low), body summary, and actions array.`;
+      if(isConfig) extraInstruction=`\n\nThis is a configuration request. Provide step-by-step instructions with config snippets.`;
+
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system:sysPrompt+extraInstruction,
+          messages:[...history,{role:"user",content:userMsg}]
+        })
+      });
+      const data=await res.json();
+      let content=data.content?.[0]?.text||"Sorry, I could not process that request.";
+
+      // Parse special blocks
+      let card=null,siem=null,actions=null;
+      const cardMatch=content.match(/RESULT_CARD:(\{[\s\S]*?\})/);
+      if(cardMatch){try{card=JSON.parse(cardMatch[1]);content=content.replace(/RESULT_CARD:\{[\s\S]*?\}/,"").trim();}catch{}}
+      const siemMatch=content.match(/SIEM_ALERT:(\{[\s\S]*?\})/);
+      if(siemMatch){try{siem=JSON.parse(siemMatch[1]);content=content.replace(/SIEM_ALERT:\{[\s\S]*?\}/,"").trim();}catch{}}
+
+      // Add follow-up actions based on topic
+      if(!card&&!siem){
+        if(lower.includes("show")||lower.includes("list")||lower.includes("find"))
+          actions=["Export results","Create ticket","Send report"];
+        else if(isCrud)
+          actions=["Confirm action","View audit log","Notify user"];
+      }
+
+      const aiM={id:Date.now()+1,role:"assistant",ts:Date.now(),content,card,siem,actions};
+      setMessages(p=>[...p,aiM]);
+    }catch(e){
+      setMessages(p=>[...p,{id:Date.now()+1,role:"assistant",ts:Date.now(),content:"Sorry, I encountered an error. Please try again."}]);
+    }
+    setLoading(false);
+  };
+
+  const currentTopic=CHAT_TOPICS.find(t=>t.id===topic)||CHAT_TOPICS[0];
+
+  return(
+    <div style={{height:"calc(100vh - 0px)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div className="chat-header">
+        <div>
+          <div className="chat-header-title">🤖 CTInnvoID AI Assistant</div>
+          <div className="chat-header-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · {siemSystem} connected</div>
+        </div>
+        <div className="fc2">
+          <select className="fsel" style={{width:"auto",fontSize:12,padding:"5px 10px"}} value={siemSystem} onChange={e=>setSiemSystem(e.target.value)}>
+            {SIEM_SYSTEMS.map(s=><option key={s}>{s}</option>)}
+          </select>
+          <span className="chip ct-t" style={{fontSize:10}}>● Live</span>
+        </div>
+      </div>
+
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+        {/* Left sidebar — topics */}
+        <div className="chat-sidebar">
+          <div className="chat-sidebar-hd">Capabilities</div>
+          <div style={{padding:10,flex:1,overflowY:"auto"}}>
+            {CHAT_TOPICS.map(t=>(
+              <div key={t.id} className={`chat-topic ${topic===t.id?"active":""}`} onClick={()=>setTopic(t.id)}>
+                <span className="chat-topic-icon">{t.icon}</span>
+                <span className="chat-topic-label">{t.label}</span>
+                <span className="chat-topic-sub">{t.sub}</span>
+              </div>
+            ))}
+            <div style={{borderTop:"1px solid var(--border)",marginTop:10,paddingTop:10}}>
+              <div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:8,letterSpacing:".08em",textTransform:"uppercase"}}>SIEM Systems</div>
+              {SIEM_SYSTEMS.slice(0,4).map(s=>(
+                <div key={s} className={`chat-topic ${siemSystem===s?"active":""}`} onClick={()=>{setSiemSystem(s);setTopic("siem");}}>
+                  <span className="chat-topic-icon">🛡️</span>
+                  <span className="chat-topic-label" style={{fontSize:11}}>{s}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main chat */}
+        <div className="chat-main">
+          {/* Messages */}
+          <div className="chat-messages">
+            {messages.map(m=><ChatMessage key={m.id} msg={m} onAction={send}/>)}
+            {loading&&(
+              <div className="chat-msg">
+                <div className="chat-avatar ai">🤖</div>
+                <div className="chat-typing">
+                  <div className="chat-typing-dot"/>
+                  <div className="chat-typing-dot"/>
+                  <div className="chat-typing-dot"/>
+                  <span style={{fontSize:12,color:"var(--text3)",marginLeft:4}}>Thinking…</span>
+                </div>
+              </div>
+            )}
+            <div ref={msgEndRef}/>
+          </div>
+
+          {/* Input area */}
+          <div className="chat-input-wrap">
+            {/* Quick suggestions from current topic */}
+            <div className="chat-suggestions">
+              {currentTopic.prompts.slice(0,4).map((p,i)=>(
+                <button key={i} className="chat-suggestion" onClick={()=>send(p)}>{p}</button>
+              ))}
+            </div>
+            {/* Quick action chips */}
+            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+              {QUICK_ACTIONS.map((a,i)=>(
+                <button key={i} className="chat-action-card" onClick={()=>send(a.label)} style={{fontSize:11,padding:"4px 10px"}}>
+                  {a.icon} {a.label}
+                </button>
+              ))}
+            </div>
+            <div className="chat-input-row">
+              <textarea
+                ref={inputRef}
+                className="chat-input"
+                placeholder={`Ask about identities, configure ${siemSystem}, manage access, integrate apps…`}
+                value={input}
+                onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+                rows={1}
+              />
+              <button className="chat-send" onClick={()=>send()} disabled={loading||!input.trim()}>→</button>
+            </div>
+            <div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--font-m)",marginTop:8,textAlign:"center"}}>
+              Shift+Enter for new line · Enter to send · Actions require admin confirmation
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function App(){
   const [page,setPage]=useState("dashboard");
   const [scanning,setScanning]=useState(false);
@@ -1492,6 +1776,7 @@ export default function App(){
           {page==="lineage"&&<Lineage liveData={liveData}/>}
           {page==="discovery"&&<Discovery liveData={liveData}/>}
           {page==="integrations"&&<IntegrationHub/>}
+          {page==="chatbot"&&<Chatbot liveData={liveData}/>}
         </div>
       </div>
     </>
