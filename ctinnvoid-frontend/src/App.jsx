@@ -276,7 +276,7 @@ const riskChip=r=>{
 const stChip=s=>s==="dormant"?<span className="chip ct-a">Dormant</span>:<span className="chip ct-t">Active</span>;
 const tyChip=t=>{const m=TM[t]||TM.human;return <span className="chip" style={{background:`${m.color}14`,color:m.color,border:`1px solid ${m.color}28`}}>{m.label}</span>;};
 
-const NAV=[{id:"dashboard",icon:"◈",label:"Overview",badge:null},{id:"identities",icon:"◉",label:"Identity Map",badge:null},{id:"apps",icon:"⬡",label:"App Coverage",badge:"7 gaps"},{id:"connector",icon:"⟳",label:"Connector Studio",badge:null},{id:"rpa",icon:"⬟",label:"RPA Builder",badge:null},{id:"roles",icon:"◆",label:"Role Mining",badge:null},{id:"lineage",icon:"⟡",label:"Lineage",badge:null}];
+const NAV=[{id:"dashboard",icon:"◈",label:"Overview",badge:null},{id:"identities",icon:"◉",label:"Identity Map",badge:null},{id:"apps",icon:"⬡",label:"App Coverage",badge:"7 gaps"},{id:"connector",icon:"⟳",label:"Connector Studio",badge:null},{id:"rpa",icon:"⬟",label:"RPA Builder",badge:null},{id:"roles",icon:"◆",label:"Role Mining",badge:null},{id:"lineage",icon:"⟡",label:"Lineage",badge:null},{id:"discovery",icon:"◎",label:"Discovery",badge:"New"}];
 
 function Sidebar({page,setPage,dark,setDark,live,loading}){
   return(
@@ -792,6 +792,259 @@ function Lineage({liveData}){
   );
 }
 
+
+/* ── DISCOVERY PAGE ─────────────────────────────────────────────────────── */
+function Discovery({liveData}){
+  const [groups,setGroups]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [filter,setFilter]=useState("all");
+  const [search,setSearch]=useState("");
+  const [selGroup,setSelGroup]=useState(null);
+  const [tab,setTab]=useState("groups");
+
+  useEffect(()=>{
+    async function load(){
+      try{
+        setLoading(true);
+        const data=await apiFetch("/groups");
+        setGroups(data);
+      }catch(e){console.error(e);}
+      finally{setLoading(false);}
+    }
+    load();
+  },[]);
+
+  const sum=groups?.summary||{};
+  const ids=liveData?.identities||[];
+  const idSum=liveData?.summary||{};
+
+  const filteredGroups=(groups?.groups||[]).filter(g=>{
+    const mf=filter==="all"||g.risk===filter||(filter==="dynamic"&&g.dynamic)||(filter==="security"&&g.type==="Security");
+    const ms=!search||g.name.toLowerCase().includes(search.toLowerCase());
+    return mf&&ms;
+  });
+
+  const riskOrder={critical:0,high:1,medium:2,low:3};
+  const sorted=[...filteredGroups].sort((a,b)=>(riskOrder[a.risk]||3)-(riskOrder[b.risk]||3));
+
+  return(
+    <div className="page">
+      <div className="ph">
+        <div className="phtop">
+          <div>
+            <div className="ptitle">Environment <span>Discovery</span></div>
+            <div className="psub">Full scan of groups, roles, departments and risk across IdenAccess.onmicrosoft.com <span style={{color:"var(--teal)",fontSize:11,fontFamily:"var(--font-m)",marginLeft:8}}>● Live</span></div>
+          </div>
+          <button className="btn btn-p" onClick={()=>{setLoading(true);apiFetch("/groups").then(d=>{setGroups(d);setLoading(false);});}}>⟳ Rescan</button>
+        </div>
+      </div>
+
+      {/* Top stats */}
+      <div className="sgrid gap" style={{gridTemplateColumns:"repeat(6,1fr)"}}>
+        <div className="sc"><div className="sc-glow" style={{background:"#38BDF8"}}/><div className="slbl">Total IDs</div><div className="sval" style={{color:"#38BDF8",fontSize:26}}>{idSum.total||0}</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#7B6EF6"}}/><div className="slbl">Groups</div><div className="sval" style={{color:"#7B6EF6",fontSize:26}}>{loading?"…":sum.totalGroups||0}</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#FF4668"}}/><div className="slbl">Critical Groups</div><div className="sval" style={{color:"#FF4668",fontSize:26}}>{loading?"…":sum.criticalGroups||0}</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#FFB547"}}/><div className="slbl">High Risk</div><div className="sval" style={{color:"#FFB547",fontSize:26}}>{loading?"…":sum.highGroups||0}</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#00D4B8"}}/><div className="slbl">Roles</div><div className="sval" style={{color:"#00D4B8",fontSize:26}}>{loading?"…":sum.totalRoles||0}</div></div>
+        <div className="sc"><div className="sc-glow" style={{background:"#F062A4"}}/><div className="slbl">Departments</div><div className="sval" style={{color:"#F062A4",fontSize:26}}>{loading?"…":(sum.departments||[]).length}</div></div>
+      </div>
+
+      {/* Tab switcher */}
+      <div className="ltabs gap">
+        {[{id:"groups",label:"🔒 Groups & Roles"},{id:"departments",label:"🏢 Departments"},{id:"riskscore",label:"⚠️ Risk Score"}].map(t=>(
+          <button key={t.id} className={`ltab ${tab===t.id?"on":""}`} onClick={()=>setTab(t.id)}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* GROUPS TAB */}
+      {tab==="groups"&&(
+        <div>
+          <div className="fbar">
+            {["all","critical","high","medium","low","security","dynamic"].map(f=>(
+              <button key={f} className={`fc ${filter===f?"on":""}`} onClick={()=>setFilter(f)}>{f.charAt(0).toUpperCase()+f.slice(1)}</button>
+            ))}
+            <input className="sbox" placeholder="🔍 Search groups…" value={search} onChange={e=>setSearch(e.target.value)} style={{marginLeft:"auto"}}/>
+          </div>
+          {loading?(
+            <div style={{textAlign:"center",padding:40,color:"var(--text3)"}}>
+              <div className="dots"><span/><span/><span/></div>
+              <div style={{marginTop:12,fontSize:13}}>Scanning Entra ID groups…</div>
+            </div>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:selGroup?"1fr 360px":"1fr",gap:16,alignItems:"start"}}>
+              <div className="gcard">
+                <div className="gch">
+                  <div><div className="gct">{sorted.length} groups</div><div className="gcs">Sorted by risk</div></div>
+                </div>
+                <table>
+                  <thead><tr><th>Group Name</th><th>Type</th><th>Members</th><th>Risk Score</th><th>Dynamic</th><th>Created</th></tr></thead>
+                  <tbody>
+                    {sorted.map(g=>(
+                      <tr key={g.id} style={{cursor:"pointer"}} onClick={()=>setSelGroup(selGroup?.id===g.id?null:g)}>
+                        <td><div className="tdp">{g.name}</div><div className="tdm" style={{maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.description}</div></td>
+                        <td><span className="chip ct-gh">{g.type}</span></td>
+                        <td><span style={{fontFamily:"var(--font-m)",color:"var(--text)",fontWeight:600}}>{g.memberCount}</span></td>
+                        <td>{riskChip(g.risk)}</td>
+                        <td>{g.dynamic?<span className="chip ct-t">Dynamic</span>:<span className="chip ct-gh">Static</span>}</td>
+                        <td className="tdm">{g.created}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {selGroup&&(
+                <div className="dp">
+                  <div className="fb" style={{marginBottom:16}}>
+                    <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:600}}>{selGroup.name}</div>
+                    <button className="btn btn-g btn-xs" onClick={()=>setSelGroup(null)}>✕</button>
+                  </div>
+                  <div className="sgrid" style={{gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                    <div className="sc" style={{padding:"12px 14px"}}><div className="slbl">Members</div><div className="sval" style={{fontSize:22,color:"var(--teal)"}}>{selGroup.memberCount}</div></div>
+                    <div className="sc" style={{padding:"12px 14px"}}><div className="slbl">Risk</div><div style={{marginTop:8}}>{riskChip(selGroup.risk)}</div></div>
+                  </div>
+                  <div className="fg"><div className="flbl" style={{marginBottom:6}}>Type</div><span className="chip ct-gh">{selGroup.type}</span></div>
+                  <div className="fg"><div className="flbl" style={{marginBottom:6}}>Membership</div><span className={`chip ${selGroup.dynamic?"ct-t":"ct-gh"}`}>{selGroup.dynamic?"Dynamic (rule-based)":"Static (manual)"}</span></div>
+                  <div className="fg"><div className="flbl" style={{marginBottom:6}}>Created</div><span style={{fontSize:13,color:"var(--text2)"}}>{selGroup.created}</span></div>
+                  <div className="fg"><div className="flbl" style={{marginBottom:6}}>Description</div><span style={{fontSize:12,color:"var(--text2)"}}>{selGroup.description}</span></div>
+                  {selGroup.risk==="critical"&&(
+                    <div style={{background:"rgba(255,70,104,.08)",border:"1px solid rgba(255,70,104,.2)",borderRadius:"var(--r)",padding:"10px 14px",marginBottom:14}}>
+                      <div style={{color:"var(--red)",fontWeight:600,marginBottom:4}}>⚠ Critical Risk Group</div>
+                      <div style={{fontSize:12,color:"var(--text2)"}}>This group has elevated privileges. Review membership immediately.</div>
+                    </div>
+                  )}
+                  <button className="btn btn-p btn-sm" style={{width:"100%"}}>View Members</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Directory Roles */}
+          {!loading&&groups?.roles?.length>0&&(
+            <div style={{marginTop:20}}>
+              <div className="gcard">
+                <div className="gch"><div className="gct">Directory Roles ({groups.roles.length})</div><div className="gcs">Built-in Entra ID roles</div></div>
+                <table>
+                  <thead><tr><th>Role Name</th><th>Risk</th><th>Description</th></tr></thead>
+                  <tbody>
+                    {groups.roles.map(r=>(
+                      <tr key={r.id}>
+                        <td className="tdp">{r.name}</td>
+                        <td>{riskChip(/global.admin|privileged|security.admin/i.test(r.name)?"critical":/admin/i.test(r.name)?"high":"low")}</td>
+                        <td style={{fontSize:12,color:"var(--text3)",maxWidth:300,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.description||"—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DEPARTMENTS TAB */}
+      {tab==="departments"&&(
+        <div>
+          {loading?(
+            <div style={{textAlign:"center",padding:40,color:"var(--text3)"}}>
+              <div className="dots"><span/><span/><span/></div>
+            </div>
+          ):(
+            <div className="gcard">
+              <div className="gch"><div className="gct">Departments ({(sum.departments||[]).length})</div><div className="gcs">Identity distribution by department</div></div>
+              <table>
+                <thead><tr><th>Department</th><th>Total IDs</th><th>Active</th><th>Disabled</th><th>Coverage</th></tr></thead>
+                <tbody>
+                  {(sum.departments||[]).map((d,i)=>{
+                    const pct=Math.round(d.enabled/d.count*100);
+                    return(
+                      <tr key={i}>
+                        <td className="tdp">{d.name}</td>
+                        <td><span style={{fontFamily:"var(--font-m)",fontWeight:600,color:"var(--text)"}}>{d.count}</span></td>
+                        <td><span className="chip ct-t">{d.enabled}</span></td>
+                        <td>{d.disabled>0?<span className="chip ct-r">{d.disabled}</span>:<span className="chip ct-gh">0</span>}</td>
+                        <td>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div style={{flex:1,height:4,background:"var(--surface3)",borderRadius:2,overflow:"hidden"}}>
+                              <div style={{width:`${pct}%`,height:"100%",background:pct>90?"var(--green)":pct>70?"var(--amber)":"var(--red)",borderRadius:2}}/>
+                            </div>
+                            <span className="tdm">{pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* RISK SCORE TAB */}
+      {tab==="riskscore"&&(
+        <div>
+          <div className="sgrid c3 gap">
+            <div className="sc">
+              <div className="sc-glow" style={{background:"#FF4668"}}/>
+              <div className="slbl">Overall Risk Score</div>
+              <div className="sval" style={{color:idSum.critical>5?"#FF4668":idSum.critical>2?"#FFB547":"#22D3A0",fontSize:42}}>
+                {idSum.critical>5?"HIGH":idSum.critical>2?"MED":"LOW"}
+              </div>
+              <div className="ssub">Based on {idSum.critical||0} critical identities</div>
+            </div>
+            <div className="sc">
+              <div className="sc-glow" style={{background:"#FFB547"}}/>
+              <div className="slbl">Privileged Accounts</div>
+              <div className="sval" style={{color:"#FFB547",fontSize:32}}>{idSum.critical||0}</div>
+              <div className="ssub">Require immediate review</div>
+            </div>
+            <div className="sc">
+              <div className="sc-glow" style={{background:"#7B6EF6"}}/>
+              <div className="slbl">Unmanaged Groups</div>
+              <div className="sval" style={{color:"#7B6EF6",fontSize:32}}>{loading?"…":(sum.criticalGroups||0)+(sum.highGroups||0)}</div>
+              <div className="ssub">High + critical risk groups</div>
+            </div>
+          </div>
+
+          <div className="gcard">
+            <div className="gch"><div className="gct">Risk Breakdown by Identity Type</div></div>
+            <table>
+              <thead><tr><th>Identity Type</th><th>Count</th><th>Risk Level</th><th>Recommended Action</th></tr></thead>
+              <tbody>
+                <tr><td className="tdp">Human Users</td><td>{idSum.human||0}</td><td>{riskChip("low")}</td><td style={{fontSize:12,color:"var(--text2)"}}>Enforce MFA, review privileged accounts</td></tr>
+                <tr><td className="tdp">Service Accounts</td><td>{idSum.service||0}</td><td>{riskChip("high")}</td><td style={{fontSize:12,color:"var(--text2)"}}>Audit permissions, rotate credentials</td></tr>
+                <tr><td className="tdp">Machine Identities</td><td>{idSum.machine||0}</td><td>{riskChip("medium")}</td><td style={{fontSize:12,color:"var(--text2)"}}>Validate certificate expiry</td></tr>
+                <tr><td className="tdp">Vendor / External</td><td>{idSum.vendor||0}</td><td>{riskChip("medium")}</td><td style={{fontSize:12,color:"var(--text2)"}}>Review access scope and expiry</td></tr>
+                <tr><td className="tdp">Local Accounts</td><td>{idSum.local||0}</td><td>{riskChip("critical")}</td><td style={{fontSize:12,color:"var(--text2)"}}>Onboard to Entra ID immediately</td></tr>
+                <tr><td className="tdp">Disabled Accounts</td><td>{idSum.disabled||0}</td><td>{riskChip("medium")}</td><td style={{fontSize:12,color:"var(--text2)"}}>Remove group memberships and licenses</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          {!loading&&(sum.departments||[]).length>0&&(
+            <div className="gcard" style={{marginTop:16}}>
+              <div className="gch"><div className="gct">Department Risk Exposure</div><div className="gcs">Disabled accounts by department</div></div>
+              <table>
+                <thead><tr><th>Department</th><th>Total</th><th>Disabled</th><th>Risk</th></tr></thead>
+                <tbody>
+                  {(sum.departments||[]).filter(d=>d.disabled>0).map((d,i)=>(
+                    <tr key={i}>
+                      <td className="tdp">{d.name}</td>
+                      <td>{d.count}</td>
+                      <td><span className="chip ct-r">{d.disabled}</span></td>
+                      <td>{riskChip(d.disabled>3?"high":"medium")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App(){
   const [page,setPage]=useState("dashboard");
   const [scanning,setScanning]=useState(false);
@@ -828,6 +1081,7 @@ export default function App(){
           {page==="rpa"&&<RPABuilder/>}
           {page==="roles"&&<RoleMining liveData={liveData}/>}
           {page==="lineage"&&<Lineage liveData={liveData}/>}
+          {page==="discovery"&&<Discovery liveData={liveData}/>}
         </div>
       </div>
     </>
