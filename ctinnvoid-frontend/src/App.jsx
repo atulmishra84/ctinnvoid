@@ -610,19 +610,22 @@ const ACCESS_PATHS=[
 
 /* ── GRAPH VIEW ─────────────────────────────────────────────────────────── */
 function GraphView({nodes}){
-  const LIN_NODES_USE=nodes&&nodes.length?nodes:LIN_NODES;
+  const NODES = (nodes && nodes.length) ? nodes : LIN_NODES;
   const [sel,setSel]=useState(null);
   const [offset,setOffset]=useState({x:0,y:0});
   const [drag,setDrag]=useState(null);
   const canvasRef=useRef(null);
 
-  const getPos=id=>{const n=LIN_NODES_USE.find(x=>x.id===id);return n?{x:n.x+offset.x,y:n.y+offset.y}:null;};
+  const getPos=id=>{
+    const n=NODES.find(x=>x.id===id);
+    return n?{x:n.x+offset.x,y:n.y+offset.y}:null;
+  };
 
   const onMouseDown=e=>{if(e.target===canvasRef.current)setDrag({sx:e.clientX-offset.x,sy:e.clientY-offset.y});};
   const onMouseMove=e=>{if(drag)setOffset({x:e.clientX-drag.sx,y:e.clientY-drag.sy});};
   const onMouseUp=()=>setDrag(null);
 
-  const selNode=LIN_NODES.find(n=>n.id===sel);
+  const selNode=NODES.find(n=>n.id===sel);
   const selEdges=sel?LIN_EDGES.filter(e=>e.s===sel||e.t===sel):[];
   const connected=new Set(selEdges.flatMap(e=>[e.s,e.t]));
 
@@ -635,7 +638,7 @@ function GraphView({nodes}){
           <div className="lgraph-legend">
             <div className="lleg-item"><div className="lleg-line" style={{background:"var(--teal)"}}/> Access</div>
             <div className="lleg-item"><div className="lleg-line" style={{background:"var(--violet)"}}/> Data</div>
-            <div className="lleg-item"><div className="lleg-line" style={{background:"var(--red)",borderTop:"2px dashed var(--red)",height:0}}/> Risk</div>
+            <div className="lleg-item"><div className="lleg-line" style={{background:"var(--red)"}}/> Risk</div>
           </div>
         </div>
         <div className="lgraph-canvas" ref={canvasRef} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
@@ -646,22 +649,30 @@ function GraphView({nodes}){
               <marker id="arr-r" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="var(--red)" opacity=".7"/></marker>
             </defs>
             {LIN_EDGES.map((e,i)=>{
-              const s=getPos(e.s),t=getPos(e.t);if(!s||!t)return null;
-              const mx=(s.x+t.x)/2,my=(s.y+t.y)/2;
+              const s=getPos(e.s),t=getPos(e.t);
+              if(!s||!t)return null;
+              const mx=(s.x+t.x)/2;
               const faded=sel&&!connected.has(e.s)&&!connected.has(e.t);
               const mid=`M${s.x+130},${s.y+36} C${mx+40},${s.y+36} ${mx-40},${t.y+36} ${t.x},${t.y+36}`;
               const col=e.k==="risk"?"var(--red)":e.k==="data"?"var(--violet)":"var(--teal)";
               const arr=e.k==="risk"?"url(#arr-r)":e.k==="data"?"url(#arr-v)":"url(#arr-t)";
-              return <path key={i} d={mid} className={`ledge ${e.k}`} stroke={col} markerEnd={arr} opacity={faded?.15:.5} style={{transition:"opacity .2s"}}/>;
+              return <path key={i} d={mid} className={`ledge ${e.k}`} stroke={col} markerEnd={arr} style={{opacity:faded?.15:.5,transition:"opacity .2s"}}/>;
             })}
           </svg>
-          {LIN_NODES_USE.map(n=>{
+          {NODES.map(n=>{
             const faded=sel&&!connected.has(n.id)&&n.id!==sel;
             const typeColors={iam:"rgba(123,110,246,.12)",human:"rgba(56,189,248,.1)",service:"rgba(123,110,246,.1)",machine:"rgba(0,212,184,.1)",vendor:"rgba(255,181,71,.1)",group:"rgba(255,255,255,.06)",app:"rgba(0,212,184,.1)",ent:"rgba(255,255,255,.06)"};
             return(
               <div key={n.id} className={`lnode ${sel===n.id?"sel":""}`}
-                style={{left:n.x+offset.x,top:n.y+offset.y,background:typeColors[n.type]||"rgba(255,255,255,.06)",borderColor:sel===n.id?n.color:n.risk?"rgba(255,70,104,.4)":"rgba(255,255,255,.12)",opacity:faded?.25:1,transition:"opacity .2s",backdropFilter:"blur(12px)"}}
-                onClick={e=>{e.stopPropagation();setSel(sel===n.id?null:n.id);}}>
+                style={{
+                  left:n.x+offset.x,top:n.y+offset.y,
+                  background:typeColors[n.type]||"rgba(255,255,255,.06)",
+                  borderColor:sel===n.id?n.color:n.risk?"rgba(255,70,104,.4)":"rgba(255,255,255,.12)",
+                  opacity:faded?.25:1,
+                  transition:"opacity .2s",
+                  backdropFilter:"blur(12px)"
+                }}
+                onClick={ev=>{ev.stopPropagation();setSel(sel===n.id?null:n.id);}}>
                 <div className="lnode-icon">{n.icon}</div>
                 <div className="lnode-label">{n.label}</div>
                 <div className="lnode-sub">{n.sub}</div>
@@ -673,9 +684,9 @@ function GraphView({nodes}){
       </div>
       {selNode&&(
         <div className="ldetail">
-          <div className="ldetail-title">{selNode.icon} {selNode.label} — Access Paths</div>
+          <div className="ldetail-title">{selNode.icon} {selNode.label} — Connections</div>
           {selEdges.map((e,i)=>{
-            const other=LIN_NODES.find(n=>n.id===(e.s===sel?e.t:e.s));
+            const other=NODES.find(n=>n.id===(e.s===sel?e.t:e.s));
             const dir=e.s===sel?"→":"←";
             return(
               <div key={i} className="lpath-row">
@@ -683,7 +694,7 @@ function GraphView({nodes}){
                 <span className="lpath-arrow">{dir}</span>
                 <span className="lpath-node" style={{background:`${other?.color||"#fff"}18`,color:other?.color||"var(--text)"}}>{other?.label}</span>
                 <span className="chip ct-gh" style={{marginLeft:"auto",fontSize:10}}>{e.k}</span>
-                {e.k==="risk"&&<span className="chip ct-r" style={{fontSize:10}}>⚠ Risk path</span>}
+                {e.k==="risk"&&<span className="chip ct-r" style={{fontSize:10}}>⚠ Risk</span>}
               </div>
             );
           })}
@@ -693,7 +704,6 @@ function GraphView({nodes}){
   );
 }
 
-/* ── TREE VIEW ──────────────────────────────────────────────────────────── */
 function TreeNode({node,depth=0,sel,setSel}){
   const [open,setOpen]=useState(depth<2);
   const hasKids=node.children&&node.children.length>0;
