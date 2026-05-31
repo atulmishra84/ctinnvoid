@@ -242,7 +242,7 @@ svg.ledge-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:
 .cw-nav-item:hover{background:rgba(255,255,255,.03);color:var(--text)}
 .cw-nav-item.on{background:rgba(0,212,184,.06);border-left-color:var(--teal)}
 .cw-nav-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0}
-.cw-nav-label{font-size:12px;font-weight:500;color:var(--text2);line-height:1.3}
+.cw-nav-label{font-size:12px;font-weight:500;color:var(--text2);line-height:1.3;display:block}
 .cw-nav-item.on .cw-nav-label{color:var(--teal)}
 .cw-nav-sub{font-size:10px;color:var(--text3);font-family:var(--font-m);display:block;margin-top:1px}
 .cw-nav-divider{margin:6px 16px;border:none;border-top:1px solid var(--border)}
@@ -1532,7 +1532,8 @@ Format as clean JSON with // comments. Make it production-realistic.`;
       const reader=res.body.getReader();const dec=new TextDecoder();
       while(true){
         const{done,value}=await reader.read();if(done)break;
-        for(const line of dec.decode(value).split("\n")){
+        for(const line of dec.decode(value).split("
+")){
           if(line.startsWith("data:")){
             try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setGenOutput(p=>p+d.delta.text);}catch{}
           }
@@ -1943,9 +1944,16 @@ function Chatbot({liveData}){
       const isConfig=/connect|configure|setup|integrate|connector|okta|sailpoint|cyberark|ping|forgerock/.test(lower);
 
       let extraInstruction="";
-      if(isCrud) extraInstruction=`This is an identity CRUD request. Simulate the operation and show a RESULT_CARD block.`;
-      if(isSiem) extraInstruction=`This is a SIEM query. Include a SIEM_ALERT block with title, severity and body.`;
-      if(isConfig) extraInstruction=`This is a configuration request. Provide step-by-step instructions.`;
+      if(isCrud) extraInstruction`
+
+This is an identity CRUD request. After your explanation, include a JSON block like: RESULT_CARD:{"title":"Operation Result","rows":[{"k":"Action","v":"..."}],"status":"success","statusMsg":"..."}";
+      if(isSiem) extraInstruction=`
+
+This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT:{"title":"...","severity":"high|medium|low","body":"...","actions":["Investigate","Block user","Create ticket"]} block.`;
+      if(isConfig) extraInstruction`
+
+This is a configuration request. Provide step-by-step instructions and include a relevant config snippet in a code block.";
+
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
@@ -2009,7 +2017,7 @@ function Chatbot({liveData}){
             {CHAT_TOPICS.map(t=>(
               <div key={t.id} className={`chat-topic ${topic===t.id?"active":""}`} onClick={()=>setTopic(t.id)}>
                 <span className="cw-nav-icon">{t.icon}</span>
-                <div className="cw-nav-info">
+                <div className="chat-topic-info">
                   <span className="cw-nav-label">{t.label}</span>
                   <span className="cw-nav-sub">{t.sub}</span>
                 </div>
