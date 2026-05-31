@@ -1096,6 +1096,28 @@ function Discovery({liveData}){
 }
 
 /* ── INTEGRATION HUB ─────────────────────────────────────────────────────── */
+const SIEM_INTEGRATIONS=[
+  {id:"sentinel",name:"Microsoft Sentinel",logo:"🔵",vendor:"Microsoft",status:"available",method:"REST API / CEF",color:"#0078D4",desc:"Cloud-native SIEM and SOAR platform built on Azure",features:["UEBA","Threat Intel","Playbooks","KQL Queries","Incident Mgmt"],docs:"https://docs.microsoft.com/en-us/azure/sentinel/"},
+  {id:"splunk",name:"Splunk Enterprise",logo:"🟢",vendor:"Splunk",status:"available",method:"REST API / HEC",color:"#65A637",desc:"Market-leading SIEM with powerful SPL query language",features:["SPL Search","Dashboards","Alerts","SOAR","UEBA"],docs:"https://docs.splunk.com/"},
+  {id:"qradar",name:"IBM QRadar",logo:"🔷",vendor:"IBM",status:"available",method:"REST API / Syslog",color:"#054ADA",desc:"Enterprise SIEM with advanced threat detection",features:["DSM","Offense Mgmt","Network Analytics","UBA","SOAR"],docs:"https://www.ibm.com/docs/en/qradar-on-cloud"},
+  {id:"elastic",name:"Elastic SIEM",logo:"🟡",vendor:"Elastic",status:"available",method:"REST API / ECS",color:"#F04E98",desc:"Open SIEM built on the Elastic Stack",features:["EQL","ML Anomaly","Timeline","Cases","Fleet"],docs:"https://www.elastic.co/security"},
+  {id:"cortex",name:"Palo Alto Cortex XSIAM",logo:"🟠",vendor:"Palo Alto",status:"available",method:"REST API",color:"#FA582D",desc:"AI-driven SOC platform with unified data lake",features:["AI Analytics","XSOAR","Attack Surface","CDL","Causality Analysis"],docs:"https://docs.paloaltonetworks.com/cortex"},
+  {id:"crowdstrike",name:"CrowdStrike Falcon",logo:"🔴",vendor:"CrowdStrike",status:"available",method:"REST API / Streaming",color:"#E1004B",desc:"Cloud-native endpoint and identity threat detection",features:["Identity Protection","UEBA","Threat Graph","Fusion SOAR","Spotlight"],docs:"https://developer.crowdstrike.com/"},
+  {id:"sumologic",name:"Sumo Logic",logo:"⚪",vendor:"Sumo Logic",status:"available",method:"REST API / HTTP Source",color:"#0054A0",desc:"Cloud SIEM with continuous intelligence platform",features:["Cloud SIEM","Log Analytics","Metrics","Traces","Dashboards"],docs:"https://help.sumologic.com/"},
+  {id:"chronicle",name:"Google Chronicle",logo:"🟣",vendor:"Google",status:"available",method:"REST API / HTTPS",color:"#4285F4",desc:"Cloud-scale security analytics platform by Google",features:["YARA-L","UDM","Threat Intel","SOAR","Detection Engine"],docs:"https://cloud.google.com/chronicle"},
+];
+
+const SIEM_CONN_FIELDS={
+  "sentinel":  [{k:"workspaceId",l:"Workspace ID",ph:"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"},{k:"tenantId",l:"Tenant ID",ph:"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"},{k:"clientId",l:"Client ID",ph:"your-app-client-id"},{k:"clientSecret",l:"Client Secret",ph:"••••••••",type:"password"}],
+  "splunk":    [{k:"baseUrl",l:"Splunk URL",ph:"https://splunk.company.com:8089"},{k:"token",l:"HEC Token",ph:"••••••••",type:"password"},{k:"index",l:"Index",ph:"main"}],
+  "qradar":    [{k:"baseUrl",l:"QRadar URL",ph:"https://qradar.company.com"},{k:"token",l:"API Token",ph:"••••••••",type:"password"},{k:"version",l:"API Version",ph:"19.0"}],
+  "elastic":   [{k:"baseUrl",l:"Elasticsearch URL",ph:"https://elastic.company.com:9200"},{k:"username",l:"Username",ph:"elastic"},{k:"password",l:"Password",ph:"••••••••",type:"password"},{k:"index",l:"Index Pattern",ph:"logs-*"}],
+  "cortex":    [{k:"baseUrl",l:"Cortex URL",ph:"https://api.xsiam.paloaltonetworks.com"},{k:"clientId",l:"Client ID",ph:"your-client-id"},{k:"clientSecret",l:"Client Secret",ph:"••••••••",type:"password"}],
+  "crowdstrike":[{k:"baseUrl",l:"Base URL",ph:"https://api.crowdstrike.com"},{k:"clientId",l:"Client ID",ph:"your-client-id"},{k:"clientSecret",l:"Client Secret",ph:"••••••••",type:"password"}],
+  "sumologic": [{k:"baseUrl",l:"API Endpoint",ph:"https://api.sumologic.com/api"},{k:"accessId",l:"Access ID",ph:"your-access-id"},{k:"accessKey",l:"Access Key",ph:"••••••••",type:"password"}],
+  "chronicle": [{k:"region",l:"Region",ph:"us"},{k:"clientEmail",l:"Service Account Email",ph:"svc@project.iam.gserviceaccount.com"},{k:"privateKey",l:"Private Key",ph:"-----BEGIN PRIVATE KEY-----",type:"password"}],
+};
+
 const IAM_SYSTEMS=[
   {id:"entra",name:"Microsoft Entra ID",logo:"🏛️",vendor:"Microsoft",type:"iam",status:"connected",method:"OAuth2 / Graph API",color:"#00D4B8",desc:"Cloud-native IAM — SSO, MFA, Conditional Access",features:["SSO","MFA","SCIM","Conditional Access","PIM"],docs:"https://docs.microsoft.com/en-us/graph/"},
   {id:"okta",name:"Okta",logo:"🔐",vendor:"Okta",type:"iam",status:"available",method:"OAuth2 / SCIM 2.0",color:"#007DC1",desc:"Universal directory and identity platform",features:["SSO","MFA","SCIM","Lifecycle Mgmt","API Access Mgmt"],docs:"https://developer.okta.com/"},
@@ -1176,7 +1198,7 @@ function IntegrationHub(){
     if(!selSystem)return;
     setGenerating(true);setGenOutput("");
     const method=selSystem.method?.split(" / ")[0]||"REST API";
-    const prompt=`You are an IAM integration architect. Generate a complete CTInnvoID middleware connector configuration for integrating ${selSystem.name} as ${tab==="iam"?"an IAM source":"a downstream application"}.
+    const prompt=`You are an IAM/SIEM integration architect. Generate a complete CTInnvoID middleware connector configuration for integrating ${selSystem.name} as ${tab==="iam"?"an IAM source":tab==="siem"?"a SIEM integration for security event streaming and identity threat detection":"a downstream application"}.
 
 System: ${selSystem.name}
 Vendor: ${selSystem.vendor}
@@ -1205,7 +1227,8 @@ Format as clean JSON with // comments. Make it production-realistic.`;
       const reader=res.body.getReader();const dec=new TextDecoder();
       while(true){
         const{done,value}=await reader.read();if(done)break;
-        for(const line of dec.decode(value).split("\n")){
+        for(const line of dec.decode(value).split("
+")){
           if(line.startsWith("data:")){
             try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setGenOutput(p=>p+d.delta.text);}catch{}
           }
@@ -1223,12 +1246,12 @@ Format as clean JSON with // comments. Make it production-realistic.`;
     a.click();
   };
 
-  const systems=tab==="iam"?IAM_SYSTEMS:DOWNSTREAM_APPS;
+  const systems=tab==="iam"?IAM_SYSTEMS:tab==="siem"?SIEM_INTEGRATIONS:DOWNSTREAM_APPS;
   const connectedCount=tab==="iam"
     ?IAM_SYSTEMS.filter(s=>connections[s.id]==="connected").length
     :DOWNSTREAM_APPS.filter(s=>connections[s.id]==="connected").length;
 
-  const fields=CONN_FIELDS[selSystem?.method]||CONN_FIELDS[selSystem?.method?.split(" / ")[0]]||[
+  const fields=SIEM_CONN_FIELDS[selSystem?.id]||CONN_FIELDS[selSystem?.method]||CONN_FIELDS[selSystem?.method?.split(" / ")[0]]||[
     {k:"baseUrl",l:"Base URL",ph:"https://your-system.com/api"},
     {k:"apiKey",l:"API Key / Token",ph:"••••••••",type:"password"},
   ];
@@ -1245,7 +1268,7 @@ Format as clean JSON with // comments. Make it production-realistic.`;
             <div className="sgrid" style={{gridTemplateColumns:"repeat(3,1fr)",gap:10,margin:0}}>
               <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">IAM Systems</div><div className="sval" style={{fontSize:22,color:"var(--teal)"}}>{IAM_SYSTEMS.filter(s=>connections[s.id]==="connected").length}/{IAM_SYSTEMS.length}</div></div>
               <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">Apps</div><div className="sval" style={{fontSize:22,color:"var(--violet)"}}>{DOWNSTREAM_APPS.filter(s=>connections[s.id]==="connected").length}/{DOWNSTREAM_APPS.length}</div></div>
-              <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">Gaps</div><div className="sval" style={{fontSize:22,color:"var(--red)"}}>{DOWNSTREAM_APPS.filter(s=>s.status==="gap"||s.status==="available").length}</div></div>
+              <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">SIEM</div><div className="sval" style={{fontSize:22,color:"var(--red)"}}>{SIEM_INTEGRATIONS.filter(s=>connections[s.id]==="connected").length}/{SIEM_INTEGRATIONS.length}</div></div>
             </div>
           </div>
         </div>
@@ -1255,6 +1278,7 @@ Format as clean JSON with // comments. Make it production-realistic.`;
       <div className="ltabs gap">
         <button className={`ltab ${tab==="iam"?"on":""}`} onClick={()=>{setTab("iam");setSelSystem(null);}}>🏛️ IAM Systems</button>
         <button className={`ltab ${tab==="downstream"?"on":""}`} onClick={()=>{setTab("downstream");setSelSystem(null);}}>⬡ Downstream Apps</button>
+        <button className={`ltab ${tab==="siem"?"on":""}`} onClick={()=>{setTab("siem");setSelSystem(null);}}>🛡️ SIEM Systems</button>
         <button className={`ltab ${tab==="flow"?"on":""}`} onClick={()=>setTab("flow")}>→ Integration Flow</button>
       </div>
 
@@ -1285,16 +1309,35 @@ Format as clean JSON with // comments. Make it production-realistic.`;
               </div>
 
               {/* CTInnvoID Core */}
-              <div style={{flexShrink:0,background:"linear-gradient(135deg,rgba(0,212,184,.12),rgba(123,110,246,.12))",border:"2px solid rgba(0,212,184,.3)",borderRadius:"var(--rl)",padding:"20px 24px",textAlign:"center",minWidth:180}}>
+              <div style={{flexShrink:0,background:"linear-gradient(135deg,rgba(0,212,184,.12),rgba(123,110,246,.12))",border:"2px solid rgba(0,212,184,.3)",borderRadius:"var(--rl)",padding:"20px 24px",textAlign:"center",minWidth:200}}>
                 <div style={{fontFamily:"var(--font-d)",fontSize:18,fontWeight:800,marginBottom:6}}>
                   <span style={{color:"var(--text)"}}>CT</span><span style={{background:"linear-gradient(135deg,var(--teal),var(--violet))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Innvo</span><span style={{color:"var(--teal)"}}>ID</span>
                 </div>
                 <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:12}}>MIDDLEWARE PLATFORM</div>
                 <div className="tag-row" style={{justifyContent:"center",gap:4}}>
-                  {["Connectors","RPA Bots","Role Mining","Lineage","Discovery"].map(f=>(
+                  {["Connectors","RPA Bots","Role Mining","Lineage","Discovery","SIEM"].map(f=>(
                     <span key={f} className="chip ct-t" style={{fontSize:9,padding:"2px 6px"}}>{f}</span>
                   ))}
                 </div>
+              </div>
+
+              {/* Arrow to SIEM */}
+              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"0 16px",flexShrink:0}}>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:8,textTransform:"uppercase"}}>Alerts</div>
+                <div style={{height:2,width:"100%",background:"linear-gradient(90deg,var(--red),var(--amber))",borderRadius:2,position:"relative"}}>
+                  <div style={{position:"absolute",right:-6,top:-4,color:"var(--amber)",fontSize:12}}>▶</div>
+                </div>
+              </div>
+
+              {/* SIEM Systems */}
+              <div style={{flexShrink:0,minWidth:160}}>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:12,textTransform:"uppercase",letterSpacing:".08em"}}>SIEM Systems</div>
+                {SIEM_INTEGRATIONS.slice(0,4).map(a=>(
+                  <div key={a.id} style={{background:connections[a.id]==="connected"?`${a.color}12`:"var(--surface2)",border:`1px solid ${connections[a.id]==="connected"?a.color+"40":"var(--border)"}`,borderRadius:"var(--r)",padding:"8px 12px",marginBottom:6,fontSize:12,color:"var(--text)"}}>
+                    {a.logo} {a.name}
+                    {connections[a.id]==="connected"&&<span style={{float:"right",color:"var(--teal)",fontSize:10}}>✓</span>}
+                  </div>
+                ))}
               </div>
 
               {/* Arrow */}
@@ -1324,10 +1367,10 @@ Format as clean JSON with // comments. Make it production-realistic.`;
             <table>
               <thead><tr><th>System</th><th>Type</th><th>Method</th><th>Status</th><th>Action</th></tr></thead>
               <tbody>
-                {[...IAM_SYSTEMS,...DOWNSTREAM_APPS].map(s=>(
+                {[...IAM_SYSTEMS,...DOWNSTREAM_APPS,...SIEM_INTEGRATIONS].map(s=>(
                   <tr key={s.id}>
                     <td><div className="tdp">{s.logo} {s.name}</div><div className="tdm">{s.vendor||s.cat}</div></td>
-                    <td><span className="chip ct-gh">{s.type==="iam"?"IAM Source":s.cat||"App"}</span></td>
+                    <td><span className="chip ct-gh">{s.type==="iam"?"IAM Source":s.id&&SIEM_INTEGRATIONS.find(x=>x.id===s.id)?"SIEM":s.cat||"App"}</span></td>
                     <td className="tdm">{s.method}</td>
                     <td>{statusChipConn(connections[s.id]||s.status)}</td>
                     <td>
@@ -1347,7 +1390,7 @@ Format as clean JSON with // comments. Make it production-realistic.`;
       )}
 
       {/* IAM / DOWNSTREAM TABS */}
-      {(tab==="iam"||tab==="downstream")&&(
+      {(tab==="iam"||tab==="downstream"||tab==="siem")&&(
         <div style={{display:"grid",gridTemplateColumns:selSystem?"1fr 480px":"1fr",gap:16,alignItems:"start"}}>
           {/* System cards grid */}
           <div>
@@ -1596,15 +1639,11 @@ function Chatbot({liveData}){
       const isConfig=/connect|configure|setup|integrate|connector|okta|sailpoint|cyberark|ping|forgerock/.test(lower);
 
       let extraInstruction="";
-      if(isCrud) extraInstruction="
-
-This is an identity CRUD request. After your explanation, include a JSON block like: RESULT_CARD:{"title":"Operation Result","rows":[{"k":"Action","v":"..."}],"status":"success","statusMsg":"..."}";
+      if(isCrud) extraInstruction=` This is an identity CRUD request. After your explanation, include a JSON block like: RESULT_CARD:{"title":"Operation Result","rows":[{"k":"Action","v":"..."}],"status":"success","statusMsg":"..."}`;
       if(isSiem) extraInstruction=`
 
 This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT:{"title":"...","severity":"high|medium|low","body":"...","actions":["Investigate","Block user","Create ticket"]} block.`;
-      if(isConfig) extraInstruction="
-
-This is a configuration request. Provide step-by-step instructions and include a relevant config snippet in a code block.";
+      if(isConfig) extraInstruction=` This is a configuration request. Provide step-by-step instructions and include a relevant config snippet in a code block.`;
 
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
@@ -1652,15 +1691,12 @@ This is a configuration request. Provide step-by-step instructions and include a
           <div className="chat-ai-avatar">🤖</div>
           <div>
             <div className="chat-topbar-title">CTInnvoID AI Assistant</div>
-            <div className="chat-topbar-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · {siemSystem}</div>
+            <div className="chat-topbar-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · IdenAccess.onmicrosoft.com</div>
           </div>
         </div>
         <div className="fc2">
-          <span style={{fontSize:12,color:"var(--text3)"}}>SIEM:</span>
-          <select className="fsel" style={{width:"auto",fontSize:12,padding:"5px 10px"}} value={siemSystem} onChange={e=>setSiemSystem(e.target.value)}>
-            {SIEM_SYSTEMS.map(s=><option key={s}>{s}</option>)}
-          </select>
           <span className="chip ct-t" style={{fontSize:10}}>● Live</span>
+          <span className="chip ct-gh" style={{fontSize:10}}>Configure SIEM in Integration Hub</span>
         </div>
       </div>
 
@@ -1678,16 +1714,7 @@ This is a configuration request. Provide step-by-step instructions and include a
                 </div>
               </div>
             ))}
-            <hr className="chat-sidebar-divider"/>
-            <div className="chat-sidebar-hd">SIEM Systems</div>
-            {SIEM_SYSTEMS.map(s=>(
-              <div key={s} className={`chat-topic ${siemSystem===s?"active":""}`} onClick={()=>{setSiemSystem(s);setTopic("siem");}}>
-                <span className="chat-topic-icon">🛡️</span>
-                <div className="chat-topic-info">
-                  <span className="chat-topic-label">{s}</span>
-                </div>
-              </div>
-            ))}
+
           </div>
         </div>
 
