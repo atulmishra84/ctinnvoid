@@ -230,7 +230,7 @@ svg.ledge-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:
 .lleg-line{width:20px;height:2px;border-radius:1px}
 `;
 
-const API = "/api";
+const API = "http://localhost:3001/api";
 // Live data hooks — fetched from Entra ID via backend
 async function apiFetch(path) {
   const res = await fetch(API + path);
@@ -1512,51 +1512,51 @@ You have read access to the identity data above. For write operations, confirm t
 function ChatMessage({msg,onAction}){
   const isUser=msg.role==="user";
   const time=new Date(msg.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  const sev=msg.siem?.severity||"low";
   return(
     <div className={`chat-msg ${isUser?"user":""}`}>
       <div className={`chat-avatar ${isUser?"user":"ai"}`}>{isUser?"👤":"🤖"}</div>
-      <div>
+      <div className="chat-bubble-wrap">
         <div className={`chat-bubble ${isUser?"user":"ai"}`}>
-          <div style={{whiteSpace:"pre-wrap"}}>{msg.content}</div>
+          <div style={{whiteSpace:"pre-wrap",lineHeight:1.65}}>{msg.content}</div>
           {msg.card&&(
-            <div className="chat-result-card">
-              <div className="chat-result-title">{msg.card.title}</div>
+            <div className="chat-card">
+              <div className="chat-card-title">📋 {msg.card.title}</div>
               {msg.card.rows?.map((r,i)=>(
-                <div key={i} className="chat-result-row">
-                  <span style={{color:"var(--text3)"}}>{r.k}</span>
-                  <span style={{color:r.color||"var(--text)",fontFamily:"var(--font-m)",fontSize:11}}>{r.v}</span>
+                <div key={i} className="chat-card-row">
+                  <span className="chat-card-key">{r.k}</span>
+                  <span className="chat-card-val" style={{color:r.color||"var(--text)"}}>{r.v}</span>
                 </div>
               ))}
               {msg.card.status&&(
-                <div style={{marginTop:8,display:"flex",alignItems:"center",gap:6,fontSize:12}}>
-                  <span style={{color:msg.card.status==="success"?"var(--green)":msg.card.status==="warning"?"var(--amber)":"var(--red)",fontWeight:600}}>
-                    {msg.card.status==="success"?"✓ Success":msg.card.status==="warning"?"⚠ Warning":"✗ Failed"}
-                  </span>
-                  {msg.card.statusMsg&&<span style={{color:"var(--text2)"}}>{msg.card.statusMsg}</span>}
+                <div className="chat-card-status" style={{color:msg.card.status==="success"?"var(--green)":msg.card.status==="warning"?"var(--amber)":"var(--red)"}}>
+                  {msg.card.status==="success"?"✓ Success":msg.card.status==="warning"?"⚠ Warning":"✗ Failed"}
+                  {msg.card.statusMsg&&<span style={{color:"var(--text2)",fontWeight:400}}>{msg.card.statusMsg}</span>}
                 </div>
               )}
             </div>
           )}
           {msg.siem&&(
-            <div className={msg.siem.severity==="high"||msg.siem.severity==="critical"?"siem-alert":"siem-ok"}>
-              <div className={msg.siem.severity==="high"||msg.siem.severity==="critical"?"siem-alert-title":"siem-ok-title"}>
-                {msg.siem.severity==="high"||msg.siem.severity==="critical"?"🚨":"✓"} {msg.siem.title}
+            <div className={`alert-card ${sev}`}>
+              <div className="alert-card-title">
+                {sev==="high"||sev==="critical"?"🚨":sev==="medium"?"⚠️":"✓"} {msg.siem.title}
+                <span className="chip" style={{fontSize:9,marginLeft:4,background:sev==="high"?"rgba(255,70,104,.15)":sev==="medium"?"rgba(255,181,71,.15)":"rgba(34,211,160,.15)",color:sev==="high"?"var(--red)":sev==="medium"?"var(--amber)":"var(--green)",border:"none"}}>{sev.toUpperCase()}</span>
               </div>
-              <div className="siem-alert-body">{msg.siem.body}</div>
+              <div className="alert-card-body">{msg.siem.body}</div>
               {msg.siem.actions&&(
-                <div className="chat-action-cards" style={{marginTop:8}}>
-                  {msg.siem.actions.map((a,i)=><div key={i} className="chat-action-card" onClick={()=>onAction&&onAction(a)}>{a}</div>)}
+                <div className="chat-actions" style={{marginTop:8}}>
+                  {msg.siem.actions.map((a,i)=><button key={i} className="chat-action" onClick={()=>onAction&&onAction(a)}>{a}</button>)}
                 </div>
               )}
             </div>
           )}
           {msg.actions&&(
-            <div className="chat-action-cards">
-              {msg.actions.map((a,i)=><div key={i} className="chat-action-card" onClick={()=>onAction&&onAction(a)}>{a}</div>)}
+            <div className="chat-actions">
+              {msg.actions.map((a,i)=><button key={i} className="chat-action" onClick={()=>onAction&&onAction(a)}>{a}</button>)}
             </div>
           )}
         </div>
-        <div className="chat-bubble-time">{time}</div>
+        <div className="chat-time">{time}</div>
       </div>
     </div>
   );
@@ -1596,11 +1596,15 @@ function Chatbot({liveData}){
       const isConfig=/connect|configure|setup|integrate|connector|okta|sailpoint|cyberark|ping|forgerock/.test(lower);
 
       let extraInstruction="";
-      if(isCrud) extraInstruction=`\n\nThis is an identity CRUD request. Simulate the operation and show a RESULT_CARD block.`;
+      if(isCrud) extraInstruction="
+
+This is an identity CRUD request. After your explanation, include a JSON block like: RESULT_CARD:{"title":"Operation Result","rows":[{"k":"Action","v":"..."}],"status":"success","statusMsg":"..."}";
       if(isSiem) extraInstruction=`
 
-This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT block with title, severity (high/medium/low), body summary, and actions array.`;
-      if(isConfig) extraInstruction=`\n\nThis is a configuration request. Provide step-by-step instructions with config snippets.`;
+This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT:{"title":"...","severity":"high|medium|low","body":"...","actions":["Investigate","Block user","Create ticket"]} block.`;
+      if(isConfig) extraInstruction="
+
+This is a configuration request. Provide step-by-step instructions and include a relevant config snippet in a code block.";
 
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
@@ -1641,14 +1645,18 @@ This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT block with titl
   const currentTopic=CHAT_TOPICS.find(t=>t.id===topic)||CHAT_TOPICS[0];
 
   return(
-    <div style={{height:"calc(100vh - 0px)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Header */}
-      <div className="chat-header">
-        <div>
-          <div className="chat-header-title">🤖 CTInnvoID AI Assistant</div>
-          <div className="chat-header-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · {siemSystem} connected</div>
+    <div className="chat-wrap">
+      {/* Top bar */}
+      <div className="chat-topbar">
+        <div className="chat-topbar-left">
+          <div className="chat-ai-avatar">🤖</div>
+          <div>
+            <div className="chat-topbar-title">CTInnvoID AI Assistant</div>
+            <div className="chat-topbar-sub">Powered by Claude · {liveData?.summary?.total||251} identities in scope · {siemSystem}</div>
+          </div>
         </div>
         <div className="fc2">
+          <span style={{fontSize:12,color:"var(--text3)"}}>SIEM:</span>
           <select className="fsel" style={{width:"auto",fontSize:12,padding:"5px 10px"}} value={siemSystem} onChange={e=>setSiemSystem(e.target.value)}>
             {SIEM_SYSTEMS.map(s=><option key={s}>{s}</option>)}
           </select>
@@ -1656,61 +1664,58 @@ This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT block with titl
         </div>
       </div>
 
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        {/* Left sidebar — topics */}
+      <div className="chat-body">
+        {/* Sidebar */}
         <div className="chat-sidebar">
           <div className="chat-sidebar-hd">Capabilities</div>
-          <div style={{padding:10,flex:1,overflowY:"auto"}}>
+          <div style={{flex:1,overflowY:"auto"}}>
             {CHAT_TOPICS.map(t=>(
               <div key={t.id} className={`chat-topic ${topic===t.id?"active":""}`} onClick={()=>setTopic(t.id)}>
                 <span className="chat-topic-icon">{t.icon}</span>
-                <span className="chat-topic-label">{t.label}</span>
-                <span className="chat-topic-sub">{t.sub}</span>
+                <div className="chat-topic-info">
+                  <span className="chat-topic-label">{t.label}</span>
+                  <span className="chat-topic-sub">{t.sub}</span>
+                </div>
               </div>
             ))}
-            <div style={{borderTop:"1px solid var(--border)",marginTop:10,paddingTop:10}}>
-              <div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:8,letterSpacing:".08em",textTransform:"uppercase"}}>SIEM Systems</div>
-              {SIEM_SYSTEMS.slice(0,4).map(s=>(
-                <div key={s} className={`chat-topic ${siemSystem===s?"active":""}`} onClick={()=>{setSiemSystem(s);setTopic("siem");}}>
-                  <span className="chat-topic-icon">🛡️</span>
-                  <span className="chat-topic-label" style={{fontSize:11}}>{s}</span>
+            <hr className="chat-sidebar-divider"/>
+            <div className="chat-sidebar-hd">SIEM Systems</div>
+            {SIEM_SYSTEMS.map(s=>(
+              <div key={s} className={`chat-topic ${siemSystem===s?"active":""}`} onClick={()=>{setSiemSystem(s);setTopic("siem");}}>
+                <span className="chat-topic-icon">🛡️</span>
+                <div className="chat-topic-info">
+                  <span className="chat-topic-label">{s}</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Main chat */}
+        {/* Main */}
         <div className="chat-main">
-          {/* Messages */}
           <div className="chat-messages">
             {messages.map(m=><ChatMessage key={m.id} msg={m} onAction={send}/>)}
             {loading&&(
               <div className="chat-msg">
                 <div className="chat-avatar ai">🤖</div>
                 <div className="chat-typing">
-                  <div className="chat-typing-dot"/>
-                  <div className="chat-typing-dot"/>
-                  <div className="chat-typing-dot"/>
-                  <span style={{fontSize:12,color:"var(--text3)",marginLeft:4}}>Thinking…</span>
+                  <span/><span/><span/>
+                  <span style={{fontSize:11,color:"var(--text3)",marginLeft:4,fontFamily:"var(--font-m)"}}>Thinking…</span>
                 </div>
               </div>
             )}
             <div ref={msgEndRef}/>
           </div>
 
-          {/* Input area */}
-          <div className="chat-input-wrap">
-            {/* Quick suggestions from current topic */}
+          <div className="chat-input-area">
             <div className="chat-suggestions">
-              {currentTopic.prompts.slice(0,4).map((p,i)=>(
+              {currentTopic.prompts.slice(0,5).map((p,i)=>(
                 <button key={i} className="chat-suggestion" onClick={()=>send(p)}>{p}</button>
               ))}
             </div>
-            {/* Quick action chips */}
-            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+            <div className="chat-quick-row">
               {QUICK_ACTIONS.map((a,i)=>(
-                <button key={i} className="chat-action-card" onClick={()=>send(a.label)} style={{fontSize:11,padding:"4px 10px"}}>
+                <button key={i} className="chat-quick" onClick={()=>send(a.label)}>
                   {a.icon} {a.label}
                 </button>
               ))}
@@ -1725,11 +1730,9 @@ This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT block with titl
                 onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
                 rows={1}
               />
-              <button className="chat-send" onClick={()=>send()} disabled={loading||!input.trim()}>→</button>
+              <button className="chat-send" onClick={()=>send()} disabled={loading||!input.trim()}>↑</button>
             </div>
-            <div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--font-m)",marginTop:8,textAlign:"center"}}>
-              Shift+Enter for new line · Enter to send · Actions require admin confirmation
-            </div>
+            <div className="chat-hint">Enter to send · Shift+Enter for new line · Actions require admin confirmation</div>
           </div>
         </div>
       </div>
