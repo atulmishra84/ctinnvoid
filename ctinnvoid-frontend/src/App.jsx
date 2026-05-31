@@ -1532,8 +1532,7 @@ Format as clean JSON with // comments. Make it production-realistic.`;
       const reader=res.body.getReader();const dec=new TextDecoder();
       while(true){
         const{done,value}=await reader.read();if(done)break;
-        for(const line of dec.decode(value).split("
-")){
+        for(const line of dec.decode(value).split("\n")){
           if(line.startsWith("data:")){
             try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setGenOutput(p=>p+d.delta.text);}catch{}
           }
