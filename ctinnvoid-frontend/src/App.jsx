@@ -794,13 +794,27 @@ function Lineage({liveData}){
   const tabs=[{id:"graph",label:"⬡ Node Graph"},{id:"tree",label:"⊞ Tree View"},{id:"flow",label:"→ Flow Diagram"}];
   const sum=liveData?.summary||{};
   // Enrich lineage nodes with real counts from live Entra data
-  const enrichedNodes=LIN_NODES.map(n=>{
-    if(n.id==="entra") return {...n,sub:`${sum.total||0} identities`};
-    if(n.type==="human"&&n.id==="u1") return {...n,label:liveData?.identities?.find(x=>x.risk==="critical"&&x.type==="human")?.name||n.label};
-    if(n.type==="human"&&n.id==="u2") return {...n,label:liveData?.identities?.find(x=>x.risk==="low"&&x.dept?.includes("Fin"))?.name||n.label};
+  const liveNodes=LIN_NODES.map(n=>{
+    if(n.id==="entra") return {...n,sub:`${sum.total||251} identities`};
+    if(n.type==="human"&&n.id==="u1"){
+      const match=liveData?.identities?.find(x=>x.risk==="critical"&&x.type==="human");
+      return match?{...n,label:match.name,sub:match.role}:n;
+    }
+    if(n.type==="human"&&n.id==="u2"){
+      const match=liveData?.identities?.find(x=>x.type==="human"&&x.dept&&x.dept.includes("Fin"));
+      return match?{...n,label:match.name,sub:match.role}:n;
+    }
+    if(n.type==="service"&&n.id==="u3"){
+      const match=liveData?.identities?.find(x=>x.type==="service");
+      return match?{...n,label:match.name,sub:match.role}:n;
+    }
+    if(n.type==="vendor"&&n.id==="u5"){
+      const match=liveData?.identities?.find(x=>x.type==="vendor");
+      return match?{...n,label:match.name,sub:match.role}:n;
+    }
     return n;
   });
-  const totalIdentities=sum.total||LIN_NODES.length;
+  const totalIdentities=sum.total||251;
   return(
     <div className="page">
       <div className="ph">
