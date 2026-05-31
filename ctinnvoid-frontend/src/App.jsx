@@ -535,7 +535,7 @@ svg.ledge-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:
 .lleg-line{width:20px;height:2px;border-radius:1px}
 `;
 
-const API = "/api";
+const API = "http://localhost:3001/api";
 // Live data hooks — fetched from Entra ID via backend
 async function apiFetch(path) {
   const res = await fetch(API + path);
@@ -1948,13 +1948,12 @@ function Chatbot({liveData}){
 
 This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT:{"title":"...","severity":"high|medium|low","body":"...","actions":["Investigate","Block user","Create ticket"]} block.`;
       if(isConfig) extraInstruction=`This is a config request. Provide step-by-step instructions.`;
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
+      const res=await fetch("/api/chat",{
         method:"POST",
-        headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
           system:sysPrompt+extraInstruction,
+          max_tokens:1000,
           messages:[...history,{role:"user",content:userMsg}]
         })
       });
