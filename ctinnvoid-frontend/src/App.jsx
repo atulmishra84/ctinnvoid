@@ -276,7 +276,7 @@ const riskChip=r=>{
 const stChip=s=>s==="dormant"?<span className="chip ct-a">Dormant</span>:<span className="chip ct-t">Active</span>;
 const tyChip=t=>{const m=TM[t]||TM.human;return <span className="chip" style={{background:`${m.color}14`,color:m.color,border:`1px solid ${m.color}28`}}>{m.label}</span>;};
 
-const NAV=[{id:"dashboard",icon:"◈",label:"Overview",badge:null},{id:"identities",icon:"◉",label:"Identity Map",badge:null},{id:"apps",icon:"⬡",label:"App Coverage",badge:"7 gaps"},{id:"connector",icon:"⟳",label:"Connector Studio",badge:null},{id:"rpa",icon:"⬟",label:"RPA Builder",badge:null},{id:"roles",icon:"◆",label:"Role Mining",badge:null},{id:"lineage",icon:"⟡",label:"Lineage",badge:null},{id:"discovery",icon:"◎",label:"Discovery",badge:"New"}];
+const NAV=[{id:"dashboard",icon:"◈",label:"Overview",badge:null},{id:"identities",icon:"◉",label:"Identity Map",badge:null},{id:"apps",icon:"⬡",label:"App Coverage",badge:"7 gaps"},{id:"connector",icon:"⟳",label:"Connector Studio",badge:null},{id:"rpa",icon:"⬟",label:"RPA Builder",badge:null},{id:"roles",icon:"◆",label:"Role Mining",badge:null},{id:"lineage",icon:"⟡",label:"Lineage",badge:null},{id:"discovery",icon:"◎",label:"Discovery",badge:null},{id:"integrations",icon:"⬢",label:"Integration Hub",badge:"New"}];
 
 function Sidebar({page,setPage,dark,setDark,live,loading}){
   return(
@@ -1095,6 +1095,366 @@ function Discovery({liveData}){
   );
 }
 
+/* ── INTEGRATION HUB ─────────────────────────────────────────────────────── */
+const IAM_SYSTEMS=[
+  {id:"entra",name:"Microsoft Entra ID",logo:"🏛️",vendor:"Microsoft",type:"iam",status:"connected",method:"OAuth2 / Graph API",color:"#00D4B8",desc:"Cloud-native IAM — SSO, MFA, Conditional Access",features:["SSO","MFA","SCIM","Conditional Access","PIM"],docs:"https://docs.microsoft.com/en-us/graph/"},
+  {id:"okta",name:"Okta",logo:"🔐",vendor:"Okta",type:"iam",status:"available",method:"OAuth2 / SCIM 2.0",color:"#007DC1",desc:"Universal directory and identity platform",features:["SSO","MFA","SCIM","Lifecycle Mgmt","API Access Mgmt"],docs:"https://developer.okta.com/"},
+  {id:"sailpoint",name:"SailPoint IIQ",logo:"⚓",vendor:"SailPoint",type:"iam",status:"available",method:"REST API / SCIM",color:"#1A8CFF",desc:"Enterprise IGA — provisioning, governance, compliance",features:["IGA","Role Mining","Certification","SOD","Access Request"],docs:"https://developer.sailpoint.com/"},
+  {id:"sailpoint-idn",name:"SailPoint IdentityNow",logo:"🧭",vendor:"SailPoint",type:"iam",status:"available",method:"REST API / SCIM 2.0",color:"#1A8CFF",desc:"Cloud IGA platform with AI-driven access recommendations",features:["Cloud IGA","AI Recommendations","SCIM","Lifecycle","Certification"],docs:"https://developer.sailpoint.com/idn/"},
+  {id:"cyberark",name:"CyberArk",logo:"🛡️",vendor:"CyberArk",type:"iam",status:"available",method:"REST API / PAM API",color:"#CC0000",desc:"Privileged Access Management — vault, session recording",features:["PAM","Vault","Session Recording","Just-in-time","Secrets Mgmt"],docs:"https://docs.cyberark.com/"},
+  {id:"ping",name:"Ping Identity",logo:"🏓",vendor:"Ping",type:"iam",status:"available",method:"OAuth2 / SAML / SCIM",color:"#E1261C",desc:"Intelligent identity platform for enterprise",features:["SSO","MFA","SCIM","API Security","Federation"],docs:"https://docs.pingidentity.com/"},
+  {id:"forgerock",name:"ForgeRock",logo:"🌲",vendor:"ForgeRock",type:"iam",status:"available",method:"REST API / OAuth2",color:"#5E9E3E",desc:"AI-driven identity platform for workforce and customers",features:["CIAM","IGA","PAM","AI Risk","Journey Orchestration"],docs:"https://backstage.forgerock.com/"},
+  {id:"ldap",name:"Active Directory / LDAP",logo:"🗂️",vendor:"Microsoft",type:"iam",status:"available",method:"LDAP / Kerberos",color:"#0078D4",desc:"On-premises directory services",features:["Directory","Kerberos","Group Policy","DNS","LDAP"],docs:"https://docs.microsoft.com/en-us/windows-server/identity/"},
+];
+
+const DOWNSTREAM_APPS=[
+  {id:"servicenow",name:"ServiceNow",logo:"📋",cat:"ITSM",status:"connected",method:"SCIM 2.0",color:"#62D84E",desc:"IT Service Management platform"},
+  {id:"salesforce",name:"Salesforce",logo:"☁️",cat:"CRM",status:"connected",method:"SAML/OIDC",color:"#00A1E0",desc:"Customer relationship management"},
+  {id:"sap",name:"SAP S/4HANA",logo:"🔷",cat:"ERP",status:"pending",method:"Connector needed",color:"#0070F2",desc:"Enterprise resource planning"},
+  {id:"workday",name:"Workday",logo:"🏢",cat:"HRMS",status:"gap",method:"Not integrated",color:"#F5832A",desc:"Human capital management"},
+  {id:"github",name:"GitHub Enterprise",logo:"🐙",cat:"DevTools",status:"connected",method:"SAML",color:"#24292E",desc:"Code repository and CI/CD"},
+  {id:"jira",name:"Jira Software",logo:"📌",cat:"DevTools",status:"connected",method:"SAML",color:"#0052CC",desc:"Project tracking and agile"},
+  {id:"oracle-hcm",name:"Oracle HCM",logo:"🔶",cat:"HRMS",status:"gap",method:"Not integrated",color:"#F80000",desc:"Human capital management suite"},
+  {id:"zoom",name:"Zoom",logo:"📹",cat:"Collab",status:"connected",method:"OIDC",color:"#2D8CFF",desc:"Video conferencing platform"},
+  {id:"slack",name:"Slack",logo:"💬",cat:"Collab",status:"available",method:"SCIM / OAuth2",color:"#4A154B",desc:"Team messaging platform"},
+  {id:"aws",name:"AWS IAM",logo:"☁️",cat:"Cloud",status:"available",method:"SAML / SCIM",color:"#FF9900",desc:"Amazon Web Services access management"},
+  {id:"gcp",name:"Google Cloud",logo:"🌐",cat:"Cloud",status:"available",method:"SAML / OIDC",color:"#4285F4",desc:"Google Cloud Platform IAM"},
+  {id:"confluence",name:"Confluence",logo:"📚",cat:"Collab",status:"connected",method:"SAML",color:"#172B4D",desc:"Team documentation and wiki"},
+];
+
+const CONN_FIELDS={
+  "OAuth2":[{k:"tenantId",l:"Tenant ID",ph:"your-tenant-id"},{k:"clientId",l:"Client ID",ph:"your-client-id"},{k:"clientSecret",l:"Client Secret",ph:"••••••••",type:"password"},{k:"scope",l:"Scope",ph:"https://graph.microsoft.com/.default"}],
+  "SCIM 2.0":[{k:"baseUrl",l:"SCIM Base URL",ph:"https://your-app.com/scim/v2"},{k:"token",l:"Bearer Token",ph:"••••••••",type:"password"}],
+  "REST API":[{k:"baseUrl",l:"Base URL",ph:"https://your-iiq.company.com/identityiq"},{k:"username",l:"Username",ph:"admin"},{k:"password",l:"Password",ph:"••••••••",type:"password"}],
+  "LDAP":[{k:"host",l:"LDAP Host",ph:"ldap.company.com"},{k:"port",l:"Port",ph:"389"},{k:"baseDn",l:"Base DN",ph:"DC=company,DC=com"},{k:"bindDn",l:"Bind DN",ph:"CN=svc-ldap,OU=Service,DC=company,DC=com"},{k:"password",l:"Password",ph:"••••••••",type:"password"}],
+  "SAML":[{k:"entityId",l:"Entity ID",ph:"https://your-app.com/saml"},{k:"acsUrl",l:"ACS URL",ph:"https://your-app.com/saml/acs"},{k:"metadataUrl",l:"Metadata URL",ph:"https://your-idp.com/metadata"}],
+  "REST API / PAM API":[{k:"baseUrl",l:"Base URL",ph:"https://cyberark.company.com"},{k:"username",l:"Username",ph:"admin"},{k:"password",l:"Password",ph:"••••••••",type:"password"},{k:"appId",l:"App ID",ph:"CTInnvoID"}],
+  "REST API / SCIM":[{k:"baseUrl",l:"IIQ Base URL",ph:"https://iiq.company.com/identityiq"},{k:"username",l:"Admin Username",ph:"admin"},{k:"password",l:"Password",ph:"••••••••",type:"password"},{k:"clientId",l:"OAuth Client ID",ph:"optional"}],
+  "OAuth2 / SCIM 2.0":[{k:"domain",l:"Okta Domain",ph:"your-org.okta.com"},{k:"apiToken",l:"API Token",ph:"••••••••",type:"password"},{k:"clientId",l:"Client ID",ph:"your-client-id"},{k:"clientSecret",l:"Client Secret",ph:"••••••••",type:"password"}],
+};
+
+function IntegrationHub(){
+  const [tab,setTab]=useState("iam");
+  const [selSystem,setSelSystem]=useState(null);
+  const [connForm,setConnForm]=useState({});
+  const [testing,setTesting]=useState(false);
+  const [testResult,setTestResult]=useState(null);
+  const [generating,setGenerating]=useState(false);
+  const [genOutput,setGenOutput]=useState("");
+  const [connections,setConnections]=useState({entra:"connected",servicenow:"connected",salesforce:"connected",github:"connected",jira:"connected",zoom:"connected",confluence:"connected"});
+  const genRef=useRef(null);
+
+  useEffect(()=>{if(genRef.current)genRef.current.scrollTop=genRef.current.scrollHeight;},[genOutput]);
+
+  const statusChipConn=s=>{
+    if(s==="connected") return <span className="chip ct-t">✓ Connected</span>;
+    if(s==="pending")   return <span className="chip ct-a">⟳ Pending</span>;
+    if(s==="error")     return <span className="chip ct-r">✗ Error</span>;
+    if(s==="gap")       return <span className="chip ct-r">✗ Not integrated</span>;
+    return <span className="chip ct-gh">Available</span>;
+  };
+
+  const handleSelect=sys=>{
+    setSelSystem(sys);setConnForm({});setTestResult(null);setGenOutput("");
+  };
+
+  const handleTest=async()=>{
+    setTesting(true);setTestResult(null);
+    await new Promise(r=>setTimeout(r,2000));
+    const success=Object.keys(connForm).length>=2;
+    setTestResult(success?{ok:true,msg:"Connection successful — credentials verified"}:{ok:false,msg:"Missing required fields — please fill in all credentials"});
+    setTesting(false);
+  };
+
+  const handleSave=()=>{
+    if(!selSystem)return;
+    setConnections(prev=>({...prev,[selSystem.id]:"connected"}));
+    setTestResult({ok:true,msg:`${selSystem.name} saved and connected successfully`});
+  };
+
+  const generateConnector=async()=>{
+    if(!selSystem)return;
+    setGenerating(true);setGenOutput("");
+    const method=selSystem.method?.split(" / ")[0]||"REST API";
+    const prompt=`You are an IAM integration architect. Generate a complete CTInnvoID middleware connector configuration for integrating ${selSystem.name} as ${tab==="iam"?"an IAM source":"a downstream application"}.
+
+System: ${selSystem.name}
+Vendor: ${selSystem.vendor}
+Integration Method: ${selSystem.method}
+Type: ${tab==="iam"?"IAM Source — provides identity data to CTInnvoID":"Downstream App — receives provisioning from CTInnvoID"}
+Features: ${selSystem.features?.join(", ")||""}
+
+Generate a complete production-ready connector config including:
+1. Connector metadata (name, version, type, vendor)
+2. Authentication configuration for ${selSystem.method}
+3. Identity sync settings (users, groups, roles)
+4. ${tab==="iam"?"Source connector — how CTInnvoID pulls identity data":"Target connector — how CTInnvoID pushes provisioning events"}
+5. Event handlers (provision, deprovision, update, suspend)
+6. Attribute mapping schema
+7. Health check and retry policy
+8. Sample API calls with real endpoints
+
+Format as clean JSON with // comments. Make it production-realistic.`;
+
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,stream:true,messages:[{role:"user",content:prompt}]})
+      });
+      const reader=res.body.getReader();const dec=new TextDecoder();
+      while(true){
+        const{done,value}=await reader.read();if(done)break;
+        for(const line of dec.decode(value).split("
+")){
+          if(line.startsWith("data:")){
+            try{const d=JSON.parse(line.slice(5));if(d.type==="content_block_delta"&&d.delta?.text)setGenOutput(p=>p+d.delta.text);}catch{}
+          }
+        }
+      }
+    }catch(e){setGenOutput("// Error: "+e.message);}
+    setGenerating(false);
+  };
+
+  const dlConnector=()=>{
+    const b=new Blob([genOutput],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(b);
+    a.download=`${selSystem?.id||"connector"}-ctinnvoid-config.json`;
+    a.click();
+  };
+
+  const systems=tab==="iam"?IAM_SYSTEMS:DOWNSTREAM_APPS;
+  const connectedCount=tab==="iam"
+    ?IAM_SYSTEMS.filter(s=>connections[s.id]==="connected").length
+    :DOWNSTREAM_APPS.filter(s=>connections[s.id]==="connected").length;
+
+  const fields=CONN_FIELDS[selSystem?.method]||CONN_FIELDS[selSystem?.method?.split(" / ")[0]]||[
+    {k:"baseUrl",l:"Base URL",ph:"https://your-system.com/api"},
+    {k:"apiKey",l:"API Key / Token",ph:"••••••••",type:"password"},
+  ];
+
+  return(
+    <div className="page">
+      <div className="ph">
+        <div className="phtop">
+          <div>
+            <div className="ptitle">Integration <span>Hub</span></div>
+            <div className="psub">Connect IAM systems and downstream applications to CTInnvoID middleware</div>
+          </div>
+          <div className="pact">
+            <div className="sgrid" style={{gridTemplateColumns:"repeat(3,1fr)",gap:10,margin:0}}>
+              <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">IAM Systems</div><div className="sval" style={{fontSize:22,color:"var(--teal)"}}>{IAM_SYSTEMS.filter(s=>connections[s.id]==="connected").length}/{IAM_SYSTEMS.length}</div></div>
+              <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">Apps</div><div className="sval" style={{fontSize:22,color:"var(--violet)"}}>{DOWNSTREAM_APPS.filter(s=>connections[s.id]==="connected").length}/{DOWNSTREAM_APPS.length}</div></div>
+              <div className="sc" style={{padding:"10px 16px"}}><div className="slbl">Gaps</div><div className="sval" style={{fontSize:22,color:"var(--red)"}}>{DOWNSTREAM_APPS.filter(s=>s.status==="gap"||s.status==="available").length}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab switcher */}
+      <div className="ltabs gap">
+        <button className={`ltab ${tab==="iam"?"on":""}`} onClick={()=>{setTab("iam");setSelSystem(null);}}>🏛️ IAM Systems</button>
+        <button className={`ltab ${tab==="downstream"?"on":""}`} onClick={()=>{setTab("downstream");setSelSystem(null);}}>⬡ Downstream Apps</button>
+        <button className={`ltab ${tab==="flow"?"on":""}`} onClick={()=>setTab("flow")}>→ Integration Flow</button>
+      </div>
+
+      {/* FLOW TAB */}
+      {tab==="flow"&&(
+        <div>
+          <div style={{background:"var(--glass)",backdropFilter:"blur(20px)",border:"1px solid var(--border)",borderRadius:"var(--rxl)",padding:28,marginBottom:20}}>
+            <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:600,marginBottom:20,color:"var(--text)"}}>CTInnvoID Middleware Architecture</div>
+            <div style={{display:"flex",alignItems:"center",gap:0,overflowX:"auto",paddingBottom:12}}>
+
+              {/* IAM Sources */}
+              <div style={{flexShrink:0,minWidth:160}}>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:12,textTransform:"uppercase",letterSpacing:".08em"}}>IAM Sources</div>
+                {IAM_SYSTEMS.slice(0,4).map(s=>(
+                  <div key={s.id} style={{background:connections[s.id]==="connected"?`${s.color}12`:"var(--surface2)",border:`1px solid ${connections[s.id]==="connected"?s.color+"40":"var(--border)"}`,borderRadius:"var(--r)",padding:"8px 12px",marginBottom:6,fontSize:12,color:"var(--text)"}}>
+                    {s.logo} {s.name}
+                    {connections[s.id]==="connected"&&<span style={{float:"right",color:"var(--teal)",fontSize:10}}>✓</span>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Arrow */}
+              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"0 16px",flexShrink:0}}>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:8,textTransform:"uppercase"}}>Sync</div>
+                <div style={{height:2,width:"100%",background:`linear-gradient(90deg,var(--teal),var(--violet))`,borderRadius:2,position:"relative"}}>
+                  <div style={{position:"absolute",right:-6,top:-4,color:"var(--violet)",fontSize:12}}>▶</div>
+                </div>
+              </div>
+
+              {/* CTInnvoID Core */}
+              <div style={{flexShrink:0,background:"linear-gradient(135deg,rgba(0,212,184,.12),rgba(123,110,246,.12))",border:"2px solid rgba(0,212,184,.3)",borderRadius:"var(--rl)",padding:"20px 24px",textAlign:"center",minWidth:180}}>
+                <div style={{fontFamily:"var(--font-d)",fontSize:18,fontWeight:800,marginBottom:6}}>
+                  <span style={{color:"var(--text)"}}>CT</span><span style={{background:"linear-gradient(135deg,var(--teal),var(--violet))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Innvo</span><span style={{color:"var(--teal)"}}>ID</span>
+                </div>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:12}}>MIDDLEWARE PLATFORM</div>
+                <div className="tag-row" style={{justifyContent:"center",gap:4}}>
+                  {["Connectors","RPA Bots","Role Mining","Lineage","Discovery"].map(f=>(
+                    <span key={f} className="chip ct-t" style={{fontSize:9,padding:"2px 6px"}}>{f}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"0 16px",flexShrink:0}}>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:8,textTransform:"uppercase"}}>Provision</div>
+                <div style={{height:2,width:"100%",background:`linear-gradient(90deg,var(--violet),var(--pink))`,borderRadius:2,position:"relative"}}>
+                  <div style={{position:"absolute",right:-6,top:-4,color:"var(--pink)",fontSize:12}}>▶</div>
+                </div>
+              </div>
+
+              {/* Downstream Apps */}
+              <div style={{flexShrink:0,minWidth:160}}>
+                <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginBottom:12,textTransform:"uppercase",letterSpacing:".08em"}}>Downstream Apps</div>
+                {DOWNSTREAM_APPS.slice(0,4).map(a=>(
+                  <div key={a.id} style={{background:connections[a.id]==="connected"?`${a.color}12`:"var(--surface2)",border:`1px solid ${connections[a.id]==="connected"?a.color+"40":"var(--border)"}`,borderRadius:"var(--r)",padding:"8px 12px",marginBottom:6,fontSize:12,color:"var(--text)"}}>
+                    {a.logo} {a.name}
+                    {connections[a.id]==="connected"&&<span style={{float:"right",color:"var(--teal)",fontSize:10}}>✓</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Integration summary table */}
+          <div className="gcard">
+            <div className="gch"><div className="gct">All Integrations</div><div className="gcs">Current connection status</div></div>
+            <table>
+              <thead><tr><th>System</th><th>Type</th><th>Method</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody>
+                {[...IAM_SYSTEMS,...DOWNSTREAM_APPS].map(s=>(
+                  <tr key={s.id}>
+                    <td><div className="tdp">{s.logo} {s.name}</div><div className="tdm">{s.vendor||s.cat}</div></td>
+                    <td><span className="chip ct-gh">{s.type==="iam"?"IAM Source":s.cat||"App"}</span></td>
+                    <td className="tdm">{s.method}</td>
+                    <td>{statusChipConn(connections[s.id]||s.status)}</td>
+                    <td>
+                      {connections[s.id]!=="connected"&&s.status!=="connected"&&(
+                        <button className="btn btn-g btn-xs" onClick={()=>{setTab(s.type==="iam"?"iam":"downstream");handleSelect(s);}}>Configure</button>
+                      )}
+                      {(connections[s.id]==="connected"||s.status==="connected")&&(
+                        <span style={{fontSize:11,color:"var(--teal)",fontFamily:"var(--font-m)"}}>● Active</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* IAM / DOWNSTREAM TABS */}
+      {(tab==="iam"||tab==="downstream")&&(
+        <div style={{display:"grid",gridTemplateColumns:selSystem?"1fr 480px":"1fr",gap:16,alignItems:"start"}}>
+          {/* System cards grid */}
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
+              {systems.map(s=>{
+                const status=connections[s.id]||s.status;
+                return(
+                  <div key={s.id}
+                    className={selSystem?.id===s.id?"rcard sel":"rcard"}
+                    style={{flexDirection:"column",alignItems:"flex-start",padding:"18px 20px",cursor:"pointer"}}
+                    onClick={()=>handleSelect(s)}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",marginBottom:10}}>
+                      <div style={{fontSize:28}}>{s.logo}</div>
+                      {statusChipConn(status)}
+                    </div>
+                    <div style={{fontFamily:"var(--font-d)",fontSize:14,fontWeight:600,color:"var(--text)",marginBottom:4}}>{s.name}</div>
+                    <div style={{fontSize:11,color:"var(--text3)",marginBottom:10}}>{s.vendor||s.cat} · {s.method}</div>
+                    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5,marginBottom:10}}>{s.desc}</div>
+                    <div className="tag-row">
+                      {(s.features||[]).slice(0,3).map(f=><span key={f} className="chip ct-gh" style={{fontSize:9,padding:"1px 6px"}}>{f}</span>)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Config panel */}
+          {selSystem&&(
+            <div className="dp" style={{top:0}}>
+              <div className="fb" style={{marginBottom:16}}>
+                <div>
+                  <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:700}}>{selSystem.logo} {selSystem.name}</div>
+                  <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--font-m)",marginTop:2}}>{selSystem.method}</div>
+                </div>
+                <button className="btn btn-g btn-xs" onClick={()=>{setSelSystem(null);setGenOutput("");}}>✕</button>
+              </div>
+
+              {/* Status */}
+              <div style={{marginBottom:14}}>{statusChipConn(connections[selSystem.id]||selSystem.status)}</div>
+
+              {/* Features */}
+              <div style={{marginBottom:16}}>
+                <div className="flbl" style={{marginBottom:6}}>Capabilities</div>
+                <div className="tag-row">{(selSystem.features||[]).map(f=><span key={f} className="chip ct-b" style={{fontSize:10}}>{f}</span>)}</div>
+              </div>
+
+              <hr style={{border:"none",borderTop:"1px solid var(--border)",margin:"16px 0"}}/>
+
+              {/* Connection form */}
+              <div style={{fontFamily:"var(--font-d)",fontSize:13,fontWeight:600,marginBottom:14,color:"var(--text)"}}>Connection Settings</div>
+              {fields.map(f=>(
+                <div key={f.k} className="fg">
+                  <label className="flbl">{f.l}</label>
+                  <input className="fi" type={f.type||"text"} placeholder={f.ph} value={connForm[f.k]||""} onChange={e=>setConnForm(p=>({...p,[f.k]:e.target.value}))}/>
+                </div>
+              ))}
+
+              {/* Test result */}
+              {testResult&&(
+                <div style={{background:testResult.ok?"rgba(34,211,160,.08)":"rgba(255,70,104,.08)",border:`1px solid ${testResult.ok?"rgba(34,211,160,.25)":"rgba(255,70,104,.25)"}`,borderRadius:"var(--r)",padding:"10px 14px",marginBottom:14}}>
+                  <div style={{fontSize:13,color:testResult.ok?"var(--green)":"var(--red)",fontWeight:500}}>{testResult.ok?"✓":"✗"} {testResult.msg}</div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="fc2" style={{marginBottom:16}}>
+                <button className="btn btn-g btn-sm" style={{flex:1}} onClick={handleTest} disabled={testing}>
+                  {testing?<><span className="dots"><span/><span/><span/></span> Testing…</>:"⟳ Test Connection"}
+                </button>
+                <button className="btn btn-p btn-sm" style={{flex:1}} onClick={handleSave}>✓ Save & Connect</button>
+              </div>
+
+              <hr style={{border:"none",borderTop:"1px solid var(--border)",margin:"16px 0"}}/>
+
+              {/* AI Connector generator */}
+              <div style={{fontFamily:"var(--font-d)",fontSize:13,fontWeight:600,marginBottom:10,color:"var(--text)"}}>AI Connector Generator</div>
+              <div style={{fontSize:12,color:"var(--text3)",marginBottom:12,lineHeight:1.5}}>Generate a production-ready CTInnvoID connector config for {selSystem.name} using AI</div>
+              <button className="btn btn-v btn-sm" style={{width:"100%",marginBottom:12}} onClick={generateConnector} disabled={generating}>
+                {generating?<><span className="dots"><span/><span/><span/></span> Generating…</>:"⚡ Generate Connector Config"}
+              </button>
+              {genOutput&&(
+                <>
+                  <div className="code-out" ref={genRef} style={{minHeight:200,fontSize:11}}>
+                    {genOutput}
+                    {generating&&<span className="cur"/>}
+                  </div>
+                  {!generating&&(
+                    <button className="btn btn-s btn-sm" style={{width:"100%",marginTop:8}} onClick={dlConnector}>↓ Download Connector</button>
+                  )}
+                </>
+              )}
+
+              {/* Docs link */}
+              <div style={{marginTop:14,textAlign:"center"}}>
+                <a href={selSystem.docs} target="_blank" rel="noreferrer" style={{fontSize:12,color:"var(--teal)",textDecoration:"none"}}>📖 View {selSystem.name} docs →</a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function App(){
   const [page,setPage]=useState("dashboard");
   const [scanning,setScanning]=useState(false);
@@ -1132,6 +1492,7 @@ export default function App(){
           {page==="roles"&&<RoleMining liveData={liveData}/>}
           {page==="lineage"&&<Lineage liveData={liveData}/>}
           {page==="discovery"&&<Discovery liveData={liveData}/>}
+          {page==="integrations"&&<IntegrationHub/>}
         </div>
       </div>
     </>
