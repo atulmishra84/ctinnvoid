@@ -1943,9 +1943,16 @@ function Chatbot({liveData}){
       const isConfig=/connect|configure|setup|integrate|connector|okta|sailpoint|cyberark|ping|forgerock/.test(lower);
 
       let extraInstruction="";
-      if(isCrud) extraInstruction=`This is an identity CRUD request. Simulate the operation and show a RESULT_CARD block.`;
-      if(isSiem) extraInstruction=`This is a SIEM query. Include a SIEM_ALERT block with title, severity and body.`;
-      if(isConfig) extraInstruction=`This is a configuration request. Provide step-by-step instructions.`;
+      if(isCrud) extraInstruction`
+
+This is an identity CRUD request. After your explanation, include a JSON block like: RESULT_CARD:{"title":"Operation Result","rows":[{"k":"Action","v":"..."}],"status":"success","statusMsg":"..."}";
+      if(isSiem) extraInstruction=`
+
+This is a SIEM query against ${siemSystem}. Include a SIEM_ALERT:{"title":"...","severity":"high|medium|low","body":"...","actions":["Investigate","Block user","Create ticket"]} block.`;
+      if(isConfig) extraInstruction`
+
+This is a configuration request. Provide step-by-step instructions and include a relevant config snippet in a code block.";
+
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
